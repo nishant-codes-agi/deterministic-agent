@@ -52,7 +52,7 @@ class LLMConfig(BaseSettings):
         description="Model for recovery phase",
     )
     model_fallback: str = Field(
-        default="deepseek/deepseek-chat-v3.2",
+        default="deepseek/deepseek-v3.2",
         description="Fallback model on API errors",
     )
     model_override: Optional[str] = Field(
