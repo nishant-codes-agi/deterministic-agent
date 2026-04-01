@@ -30,8 +30,8 @@ MODEL_PRICING: dict[str, tuple[float, float]] = {
     "openai/gpt-4o-mini": (0.15, 0.60),
     "openai/gpt-4o": (2.50, 10.00),
     # DeepSeek (fallback — 95% cheaper than frontier models)
-    "deepseek/deepseek-chat-v3.2": (0.28, 0.42),
-    "deepseek/deepseek-chat-v3.1": (0.15, 0.75),
+    "deepseek/deepseek-v3.2": (0.28, 0.42),
+    "deepseek/deepseek-chat-v3-0324": (0.28, 0.28),
 }
 
 
