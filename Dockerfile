@@ -10,6 +10,7 @@ RUN groupadd -r agent && useradd -r -g agent -m agent
 WORKDIR /app
 
 COPY pyproject.toml ./
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 RUN pip install --no-cache-dir -e ".[dev]" 2>/dev/null || pip install --no-cache-dir . 2>/dev/null || true
 
 COPY . .
