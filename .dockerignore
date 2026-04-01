@@ -1,0 +1,11 @@
+.git
+.gitignore
+__pycache__
+*.pyc
+.env
+.venv
+runs/
+*.egg-info
+.mypy_cache
+.pytest_cache
+.ruff_cache
