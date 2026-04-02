@@ -7,6 +7,7 @@ services:
       - ./src:/app/src
       - ./tests:/app/tests
       - ./runs:/app/runs
+      - ./scripts:/app/scripts
       - ./alembic:/app/alembic
       - ./alembic.ini:/app/alembic.ini
     env_file:
