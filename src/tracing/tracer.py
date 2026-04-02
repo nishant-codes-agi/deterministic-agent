@@ -14,7 +14,7 @@ from src.cache.tiered import TieredCache
 from src.config import LLMConfig
 from src.models.decisions import DecisionPoint, ExecutionRecord, LLMCallRecord
 from src.models.enums import RunStatus
-from src.models.traces import DecisionTrace, RunMetadata
+from src.models.traces import DecisionTrace, PathLockConfig, RunMetadata
 from src.tracing.base import DecisionTracer
 from src.tracing.cost_tracker import CostLimitExceededError, CostTracker
 
@@ -38,6 +38,7 @@ class PersistentTracer(DecisionTracer):
         cache: Optional[TieredCache] = None,
         llm_config: Optional[LLMConfig] = None,
         cost_tracker: Optional[CostTracker] = None,
+        lock_config: Optional[PathLockConfig] = None,
     ) -> None:
         self._run_id = run_id
         self._task = task
@@ -46,6 +47,7 @@ class PersistentTracer(DecisionTracer):
         self._cache = cache
         self._llm_config = llm_config
         self._cost_tracker = cost_tracker
+        self._lock_config = lock_config
 
         # In-memory accumulators
         self._decisions: list[DecisionPoint] = []
@@ -167,6 +169,8 @@ class PersistentTracer(DecisionTracer):
             started_at=self._started_at,
             completed_at=datetime.now(timezone.utc),
             status=status,
+            lock_config=self._lock_config,
+            parent_run_id=self._lock_config.source_run_id if self._lock_config else None,
             total_llm_calls=len(self._llm_calls),
             total_tokens=total_tokens,
             total_cost_usd=total_cost,
