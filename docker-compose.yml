@@ -7,6 +7,8 @@ services:
       - ./src:/app/src
       - ./tests:/app/tests
       - ./runs:/app/runs
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
     env_file:
       - .env
     depends_on:
