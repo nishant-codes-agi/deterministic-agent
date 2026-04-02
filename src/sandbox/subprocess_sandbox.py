@@ -6,6 +6,7 @@ import asyncio
 import logging
 import os
 import shutil
+import sys
 import time
 from pathlib import Path
 from typing import Optional
@@ -28,6 +29,8 @@ class SubprocessSandbox(SandboxProvider):
 
     def __init__(self, runs_dir: Optional[Path] = None) -> None:
         self._runs_dir = runs_dir or get_settings().runs_dir
+        # Resolve the Python executable — `python` may not exist on all systems
+        self._python = shutil.which("python3") or shutil.which("python") or sys.executable
 
     async def execute(
         self,
@@ -119,7 +122,7 @@ class SubprocessSandbox(SandboxProvider):
         venv_pip = cwd / ".venv" / "bin" / "pip"
         if not venv_pip.exists():
             # Create venv if it doesn't exist yet
-            await self.execute(f"python -m venv {cwd / '.venv'}", cwd=cwd)
+            await self.execute(f"{self._python} -m venv {cwd / '.venv'}", cwd=cwd)
 
         package_str = " ".join(packages)
         return await self.execute(
@@ -135,7 +138,7 @@ class SubprocessSandbox(SandboxProvider):
 
         # Create a Python venv inside the workspace
         result = await self.execute(
-            f"python -m venv {workspace / '.venv'}",
+            f"{self._python} -m venv {workspace / '.venv'}",
             cwd=workspace,
             timeout=60,
         )
