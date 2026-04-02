@@ -215,5 +215,7 @@ async def root():
 # ── Mount Routes ────────────────────────────────────────────────────────────
 
 from src.api.routes import router  # noqa: E402
+from src.api.websocket import router as ws_router  # noqa: E402
 
 app.include_router(router)
+app.include_router(ws_router)
