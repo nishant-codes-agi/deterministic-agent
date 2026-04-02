@@ -19,13 +19,19 @@ logger = logging.getLogger(__name__)
 
 # Pricing table: model prefix -> (input_cost_per_1M, output_cost_per_1M)
 # OpenRouter passes through provider pricing — these match official rates.
+# Keys are the model IDs returned by OpenRouter in response.model (may differ
+# from what you send in the request — OpenRouter often returns versioned strings).
 MODEL_PRICING: dict[str, tuple[float, float]] = {
     # Gemini (planning — best structured reasoning value)
     "google/gemini-2.5-flash": (0.30, 2.50),
     "google/gemini-2.5-flash-lite": (0.10, 0.40),
     # Claude (coding + recovery — highest first-pass code success)
+    # Both the logical alias and the versioned ID OpenRouter returns
     "anthropic/claude-sonnet-4": (3.00, 15.00),
+    "anthropic/claude-4-sonnet-20250522": (3.00, 15.00),
+    "anthropic/claude-sonnet-4-5": (3.00, 15.00),
     "anthropic/claude-haiku-4.5": (1.00, 5.00),
+    "anthropic/claude-haiku-4-5-20250514": (1.00, 5.00),
     # GPT (evaluation — cheapest reliable JSON classifier)
     "openai/gpt-4o-mini": (0.15, 0.60),
     "openai/gpt-4o": (2.50, 10.00),
@@ -121,6 +127,9 @@ class OpenRouterProvider(LLMProvider):
         latency_ms = int((time.perf_counter() - start) * 1000)
 
         content = response.choices[0].message.content or ""
+        # Claude extended-thinking models sometimes prepend <thinking>...</thinking>
+        # before the JSON even when json_object mode is requested. Strip it.
+        content = re.sub(r"<thinking>.*?</thinking>", "", content, flags=re.DOTALL).strip()
         usage = response.usage
         tokens_in = usage.prompt_tokens if usage else 0
         tokens_out = usage.completion_tokens if usage else 0
@@ -159,12 +168,26 @@ class OpenRouterProvider(LLMProvider):
 
     def estimate_cost(self, model: str, tokens_in: int, tokens_out: int) -> float:
         """Estimate cost using the pricing table."""
-        # Match model to pricing (handle versioned model strings like
-        # "anthropic/claude-sonnet-4:2025-05-14" by stripping version)
+        # Strip version suffix (e.g. "anthropic/claude-sonnet-4:2025-05-14" -> "anthropic/claude-sonnet-4")
         base_model = model.split(":")[0] if ":" in model else model
         rates = MODEL_PRICING.get(base_model)
+
         if not rates:
-            # Unknown model -- estimate conservatively at $1/$5 per 1M
+            # Try prefix matching: "anthropic/claude-4-sonnet-*" -> claude-sonnet-4 rates
+            for key, key_rates in MODEL_PRICING.items():
+                # e.g. key="anthropic/claude-sonnet-4", base_model="anthropic/claude-4-sonnet-20250522"
+                provider = key.split("/")[0] if "/" in key else ""
+                b_provider = base_model.split("/")[0] if "/" in base_model else ""
+                if provider == b_provider:
+                    key_name = key.split("/", 1)[1].replace("-", "").replace(".", "").lower()
+                    b_name = base_model.split("/", 1)[1].replace("-", "").replace(".", "").lower()
+                    # Strip trailing date-like suffixes (8 digits)
+                    b_name = re.sub(r"\d{8}$", "", b_name)
+                    if key_name in b_name or b_name in key_name:
+                        rates = key_rates
+                        break
+
+        if not rates:
             logger.warning(f"No pricing data for model {model}, using estimate")
             rates = (1.00, 5.00)
 
@@ -180,18 +203,29 @@ class OpenRouterProvider(LLMProvider):
     @staticmethod
     def _extract_json(text: str) -> Optional[dict]:
         """Extract JSON from markdown fences or mixed text."""
-        # Try ```json ... ``` pattern
+        # Try ```json ... ``` pattern first
         match = re.search(r"```(?:json)?\s*\n?(.*?)```", text, re.DOTALL)
         if match:
             try:
                 return json.loads(match.group(1).strip())
             except json.JSONDecodeError:
                 pass
-        # Try to find a JSON object in the text
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(0))
-            except json.JSONDecodeError:
-                pass
+
+        # Walk brace depth to find outermost JSON object (handles large nested JSON)
+        brace_depth = 0
+        start_idx = None
+        for i, char in enumerate(text):
+            if char == "{":
+                if brace_depth == 0:
+                    start_idx = i
+                brace_depth += 1
+            elif char == "}":
+                brace_depth -= 1
+                if brace_depth == 0 and start_idx is not None:
+                    candidate = text[start_idx: i + 1]
+                    try:
+                        return json.loads(candidate)
+                    except json.JSONDecodeError:
+                        start_idx = None
+                        continue
         return None
