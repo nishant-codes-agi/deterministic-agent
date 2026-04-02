@@ -37,6 +37,9 @@ from src.agent.prompts import (
 from src.cache.tiered import TieredCache
 from src.config import AgentConfig, LLMConfig
 from src.llm.base import LLMMessage, LLMProvider, LLMResponse
+from src.locking.base import PathLocker
+from src.locking.exceptions import PathLockViolationError
+from src.locking.locker import PromptInjectionLocker
 from src.models.decisions import (
     DecisionPoint,
     ExecutionRecord,
@@ -47,6 +50,7 @@ from src.models.traces import DecisionTrace, PathLockConfig, RunMetadata
 from src.sandbox.base import SandboxProvider
 from src.tracing.base import DecisionTracer
 from src.tracing.cost_tracker import CostLimitExceededError, CostTracker
+from src.tracing.store import TraceStore
 from src.tracing.tracer import PersistentTracer
 
 logger = logging.getLogger(__name__)
@@ -127,7 +131,23 @@ class AgentRunner(CodingAgent):
             cache=self._cache,
             llm_config=self._llm_config,
             cost_tracker=cost_tracker,
+            lock_config=lock_config,
         )
+
+        # Build the path locker if lock_config provided
+        locker: Optional[PathLocker] = None
+        if lock_config:
+            trace_store = TraceStore(
+                runs_dir=self._runs_dir,
+                db_session=db_session,
+                cache=self._cache,
+            )
+            source_trace = await trace_store.get_trace(lock_config.source_run_id)
+            if not source_trace:
+                raise ValueError(
+                    f"Source run {lock_config.source_run_id} not found"
+                )
+            locker = PromptInjectionLocker(source_trace, lock_config)
 
         try:
             # Phase 1: PLANNING (uses Gemini 2.5 Flash)
@@ -137,7 +157,7 @@ class AgentRunner(CodingAgent):
                 phase=AgentPhase.PLANNING,
             ))
             plan, plan_decisions = await self._plan(
-                task, run_id, tracer, lock_config
+                task, run_id, tracer, locker
             )
             for dp in plan_decisions:
                 await tracer.record_decision(dp)
@@ -231,6 +251,12 @@ class AgentRunner(CodingAgent):
                 RunStatus.PARTIAL,
                 error=str(e),
             )
+        except PathLockViolationError as e:
+            logger.warning(f"Path lock violation in run {run_id}: {e}")
+            return await tracer.finalize(
+                RunStatus.FAILED,
+                error=str(e),
+            )
         except Exception as e:
             logger.exception(f"Agent run {run_id} crashed: {e}")
             return await tracer.finalize(
@@ -250,17 +276,28 @@ class AgentRunner(CodingAgent):
         task: str,
         run_id: str,
         tracer: DecisionTracer,
-        lock_config: Optional[PathLockConfig] = None,
+        locker: Optional[PathLocker] = None,
+        _retry_count: int = 0,
     ) -> tuple[str, list[DecisionPoint]]:
         """Planning phase: produce structured plan with decisions.
 
         Uses Gemini 2.5 Flash for structured reasoning.
+        When a locker is active, injects lock constraints into the prompt
+        and verifies each decision after parsing.
         """
+        max_lock_retries = 3
+
         # Build locked decisions string if path locking is active
         locked_str = ""
-        if lock_config and lock_config.source_run_id:
-            decisions = await tracer.get_decisions()
-            locked_str = self._build_lock_injections(lock_config, decisions)
+        if locker:
+            locked_str = locker.get_all_lock_prompts()
+            if _retry_count > 0:
+                # Increasingly forceful prompt on retries
+                locked_str = (
+                    f"\u26a0\ufe0f CRITICAL (attempt {_retry_count + 1}/{max_lock_retries + 1}): "
+                    f"You MUST follow ALL locked decisions EXACTLY. "
+                    f"Previous attempt failed verification.\n\n{locked_str}"
+                )
 
         prompt_text = planning_prompt(task, locked_decisions=locked_str)
         messages = [
@@ -284,6 +321,39 @@ class AgentRunner(CodingAgent):
         plan_decisions, plan_text = parse_planning_response(
             parsed, sequence_start=len(decisions),
         )
+
+        # Verify locked decisions if locker is active
+        if locker and plan_decisions:
+            all_verified = True
+            for dp in plan_decisions:
+                if not locker.verify_decision(dp):
+                    all_verified = False
+                    logger.warning(
+                        f"Lock verification failed for '{dp.question}': "
+                        f"expected locked value, got '{dp.chosen}'"
+                    )
+
+            if not all_verified and _retry_count < max_lock_retries:
+                logger.info(
+                    f"Retrying planning with stronger lock prompt "
+                    f"(attempt {_retry_count + 2}/{max_lock_retries + 1})"
+                )
+                return await self._plan(
+                    task, run_id, tracer, locker,
+                    _retry_count=_retry_count + 1,
+                )
+
+            if not all_verified:
+                # All retries exhausted - report the failures
+                failures = locker.verification_failures
+                if failures:
+                    failure = failures[-1]
+                    raise PathLockViolationError(
+                        question=failure["question"],
+                        expected=failure["expected"],
+                        got=failure["got"],
+                        attempts=max_lock_retries + 1,
+                    )
 
         # Emit decision events
         for dp in plan_decisions:
@@ -639,12 +709,11 @@ class AgentRunner(CodingAgent):
 
     @staticmethod
     def _build_lock_injections(
-        lock_config: PathLockConfig,
-        existing_decisions: list[DecisionPoint],
+        locker: PathLocker,
     ) -> str:
-        """Build lock injection strings from a PathLockConfig.
+        """Build lock injection strings from a PathLocker.
 
-        This is a placeholder for Phase 5's full path locking implementation.
+        Delegates to the locker's get_all_lock_prompts() method to generate
+        the combined constraint text for the planning prompt.
         """
-        # For now, just return empty - Phase 5 will implement this
-        return ""
+        return locker.get_all_lock_prompts()
