@@ -2,6 +2,13 @@
 
 from __future__ import annotations
 
+from src.models.analysis import (
+    DecisionTreeBranch,
+    DecisionTreeNode,
+    DecisionVariance,
+    OutcomeCorrelation,
+    PathAnalysis,
+)
 from src.models.comparison import (
     DecisionAlignment,
     OutcomeDiff,
@@ -34,9 +41,14 @@ __all__ = [
     "DecisionCategory",
     "DecisionPoint",
     "DecisionTrace",
+    "DecisionTreeBranch",
+    "DecisionTreeNode",
+    "DecisionVariance",
     "ExecutionRecord",
     "LLMCallRecord",
+    "OutcomeCorrelation",
     "OutcomeDiff",
+    "PathAnalysis",
     "PathLockConfig",
     "RunComparison",
     "RunMetadata",
