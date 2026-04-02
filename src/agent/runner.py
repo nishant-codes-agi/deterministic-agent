@@ -270,6 +270,7 @@ class AgentRunner(CodingAgent):
 
         response = await self._call_llm(
             messages, AgentPhase.PLANNING, tracer, run_id,
+            response_format=dict,
         )
 
         # Parse the planning response
@@ -323,13 +324,22 @@ class AgentRunner(CodingAgent):
 
         response = await self._call_llm(
             messages, AgentPhase.CODING, tracer, run_id,
+            response_format=dict,
+            max_tokens=16384,
         )
 
-        try:
-            parsed = parse_json_from_llm(response.content)
-        except ParseError as e:
-            logger.warning(f"Failed to parse coding response: {e}")
-            return {"main.py": response.content}, []
+        # Prefer response.structured — the provider already json.loads()'d it
+        # when response_format was set. Re-parsing raw content fails for large
+        # code files where JSON escaping (\\n, \\") can be inconsistent.
+        if response.structured:
+            parsed = response.structured
+        else:
+            try:
+                parsed = parse_json_from_llm(response.content)
+            except ParseError as e:
+                logger.warning(f"Failed to parse coding response: {e}")
+                logger.debug(f"Raw coding response:\n{response.content[:1000]!r}")
+                return {"main.py": response.content}, []
 
         code_files, requirements = parse_coding_response(parsed)
 
@@ -436,6 +446,7 @@ class AgentRunner(CodingAgent):
 
         response = await self._call_llm(
             messages, AgentPhase.EVALUATING, tracer, run_id,
+            response_format=dict,
         )
 
         try:
@@ -499,13 +510,18 @@ class AgentRunner(CodingAgent):
 
         response = await self._call_llm(
             messages, AgentPhase.RECOVERING, tracer, run_id,
+            response_format=dict,
+            max_tokens=16384,
         )
 
-        try:
-            parsed = parse_json_from_llm(response.content)
-        except ParseError as e:
-            logger.warning(f"Failed to parse recovery response: {e}")
-            return plan, []
+        if response.structured:
+            parsed = response.structured
+        else:
+            try:
+                parsed = parse_json_from_llm(response.content)
+            except ParseError as e:
+                logger.warning(f"Failed to parse recovery response: {e}")
+                return plan, []
 
         decisions = await tracer.get_decisions()
         files, requirements, recovery_decisions = parse_recovery_response(
@@ -534,6 +550,7 @@ class AgentRunner(CodingAgent):
         tracer: DecisionTracer,
         run_id: str,
         response_format: Optional[type] = None,
+        max_tokens: int = 4096,
     ) -> LLMResponse:
         """Central LLM call method with per-phase model routing.
 
@@ -544,6 +561,7 @@ class AgentRunner(CodingAgent):
             messages=messages,
             model=model,
             response_format=response_format,
+            max_tokens=max_tokens,
         )
 
         # Record LLM call via tracer
