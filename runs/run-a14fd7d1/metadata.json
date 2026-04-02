@@ -1,0 +1,28 @@
+{
+  "run_id": "run-a14fd7d1",
+  "task_description": "Fetch 2 years of daily AAPL stock data, detect anomalous trading days using IQR, and print a summary of the top 5 anomalies with their dates and percentage deviations.",
+  "llm_provider": "openrouter",
+  "model_routing": {
+    "planning": "google/gemini-2.5-flash",
+    "coding": "anthropic/claude-sonnet-4",
+    "evaluating": "openai/gpt-4o-mini",
+    "recovering": "anthropic/claude-sonnet-4"
+  },
+  "temperature": 0.0,
+  "started_at": "2026-04-02T10:58:56.751258Z",
+  "completed_at": "2026-04-02T10:59:57.281569Z",
+  "status": "success",
+  "parent_run_id": "run-d9ca2137",
+  "fork_point": null,
+  "lock_config": {
+    "source_run_id": "run-d9ca2137",
+    "locked_decision_ids": null,
+    "lock_through_sequence": 1,
+    "lock_categories": null,
+    "overrides": {}
+  },
+  "total_llm_calls": 3,
+  "total_tokens": 7289,
+  "total_cost_usd": 0.0512875,
+  "error": null
+}
