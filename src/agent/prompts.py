@@ -47,38 +47,35 @@ Do not consider alternatives for locked decisions.
 """
 
     return f"""\
-Given the following task, produce a structured plan as JSON.
+Given the following task, produce a structured implementation plan as JSON.
 
 TASK: {task}
 
 {lock_section}
 
-You MUST make explicit decisions for each of the following areas (at minimum):
-- Which stock ticker(s) to analyze (data_selection)
-- What timeframe to use (parameter_tuning)
-- Which data fields/indicators to compute (data_selection)
-- Which anomaly detection method to use (algorithm_selection)
-- What anomaly parameters/thresholds to use (parameter_tuning)
-- What report format to produce (architecture)
-- Which API framework to use (library_selection)
-- Which visualization library to use (library_selection)
+Identify the key decisions required by THIS specific task. For each decision area \
+(e.g., data source, algorithm, libraries, output format, error handling), you must:
+- Frame it as a clear question
+- Consider at least 2 concrete alternatives with reasoning for each
+- Pick the best option and explain why
+- Assign a confidence score (0.0–1.0)
 
-For EACH decision, you must consider at least 2 alternatives.
+Typical decision categories: data_selection, algorithm_selection, architecture, \
+library_selection, error_recovery, parameter_tuning
 
-Respond with ONLY valid JSON in this exact format:
+Respond with ONLY valid JSON in this exact format (no preamble, no markdown fences):
 {{
   "decisions": [
     {{
-      "question": "Which stock ticker(s) to analyze?",
+      "question": "Which data source to use?",
       "category": "data_selection",
       "alternatives": [
-        {{"value": "AAPL", "reasoning": "Most liquid stock, reliable data"}},
-        {{"value": "TSLA", "reasoning": "High volatility, good for anomaly detection"}},
-        {{"value": "SPY", "reasoning": "Broad market ETF, diverse patterns"}}
+        {{"value": "yfinance", "reasoning": "Free, no API key needed, well-maintained"}},
+        {{"value": "alpha_vantage", "reasoning": "More reliable but requires API key"}}
       ],
-      "chosen": "TSLA",
-      "reasoning": "High volatility provides more anomaly candidates for demonstration",
-      "confidence": 0.75
+      "chosen": "yfinance",
+      "reasoning": "Zero-friction setup, sufficient for the task",
+      "confidence": 0.9
     }}
   ],
   "implementation_plan": "Step-by-step plan for coding the solution..."

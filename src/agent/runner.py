@@ -311,11 +311,17 @@ class AgentRunner(CodingAgent):
         )
 
         # Parse the planning response
-        try:
-            parsed = parse_json_from_llm(response.content)
-        except ParseError as e:
-            logger.warning(f"Failed to parse planning response: {e}")
-            return "Failed to parse planning response", []
+        # Prefer response.structured — already json.loads()'d by the provider
+        # when response_format=dict was set. Avoids failures when the model
+        # emits preamble / thinking text alongside the JSON in `content`.
+        if response.structured:
+            parsed = response.structured
+        else:
+            try:
+                parsed = parse_json_from_llm(response.content)
+            except ParseError as e:
+                logger.warning(f"Failed to parse planning response: {e}")
+                return "Failed to parse planning response", []
 
         decisions = await tracer.get_decisions()
         plan_decisions, plan_text = parse_planning_response(
