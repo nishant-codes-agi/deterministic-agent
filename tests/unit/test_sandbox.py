@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 from src.sandbox.subprocess_sandbox import SubprocessSandbox
@@ -38,7 +40,7 @@ class TestSubprocessSandbox:
     async def test_execute_captures_stderr(self, sandbox, tmp_path):
         """Verify stderr is captured."""
         result = await sandbox.execute(
-            "python -c \"import sys; sys.stderr.write('error msg')\"",
+            f"{sys.executable} -c \"import sys; sys.stderr.write('error msg')\"",
             cwd=tmp_path,
         )
         assert "error msg" in result.stderr
