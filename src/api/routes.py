@@ -40,6 +40,12 @@ def _get_container(request: Request):
     return _container
 
 
+def _build_event_publisher(container):
+    """Build a RedisEventPublisher from the container (gracefully None-safe)."""
+    from src.streaming.publisher import RedisEventPublisher
+    return RedisEventPublisher(redis_cache=container.get_redis())
+
+
 def _build_agent(container, model_override: Optional[str] = None):
     """Build an AgentRunner from the container."""
     from src.agent.runner import AgentRunner
@@ -110,6 +116,7 @@ async def create_run(
         settings.agent.max_iterations = body.max_iterations
 
     agent = _build_agent(container, model_override=body.model_override)
+    event_publisher = _build_event_publisher(container)
 
     # We don't know the run_id until the agent starts, so we generate one
     from uuid import uuid4
@@ -117,7 +124,7 @@ async def create_run(
 
     async def _run_task():
         try:
-            await agent.run(task=body.task)
+            await agent.run(task=body.task, event_handler=event_publisher)
         except Exception as e:
             logger.exception(f"Background run failed: {e}")
 
@@ -222,12 +229,14 @@ async def replay_run(
     from src.models.traces import PathLockConfig
     lock_config = PathLockConfig(source_run_id=run_id)
     agent = _build_agent(container, model_override=body.model_override)
+    event_publisher = _build_event_publisher(container)
 
     async def _replay_task():
         try:
             await agent.run(
                 task=source_trace.metadata.task_description,
                 lock_config=lock_config,
+                event_handler=event_publisher,
             )
         except Exception as e:
             logger.exception(f"Background replay failed: {e}")
@@ -279,6 +288,7 @@ async def fork_run(
         )
 
     agent = _build_agent(container)
+    event_publisher = _build_event_publisher(container)
 
     from src.forking.engine import ForkEngine
     engine = ForkEngine(agent=agent, trace_store=store)
@@ -289,6 +299,7 @@ async def fork_run(
                 source_run_id=run_id,
                 decision_id=body.decision_id,
                 new_choice=body.choice,
+                event_handler=event_publisher,
             )
         except Exception as e:
             logger.exception(f"Background fork failed: {e}")
