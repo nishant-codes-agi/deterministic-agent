@@ -459,14 +459,15 @@ def fork(run_id, decision, choice, compare, verbose):
     store = _build_trace_store(settings)
 
     async def _fork():
-        from src.models.traces import PathLockConfig
+        from src.forking.engine import ForkEngine
 
+        # Load source trace to show pre-fork info
         source_trace = await store.get_trace(run_id)
         if not source_trace:
             console.print(f"[red]Run {run_id} not found[/red]")
             raise SystemExit(1)
 
-        # Find the decision to override (by ID or sequence number)
+        # Find the decision to show info (by ID or sequence number)
         target_dp = None
         try:
             seq = int(decision)
@@ -487,6 +488,7 @@ def fork(run_id, decision, choice, compare, verbose):
                 console.print(f"  {dp.sequence_number}: {dp.id} - {dp.question} -> {dp.chosen}")
             raise SystemExit(1)
 
+        # Show what will be locked/overridden/free
         console.print(f"[bold]Forking run {run_id}[/bold]")
         console.print(
             f"Overriding decision {target_dp.sequence_number}: "
@@ -498,35 +500,54 @@ def fork(run_id, decision, choice, compare, verbose):
         )
         console.print()
 
-        # Build lock config with override
-        lock_config = PathLockConfig(
-            source_run_id=run_id,
-            overrides={target_dp.id: choice},
-        )
+        for dp in source_trace.decisions:
+            if dp.sequence_number < target_dp.sequence_number:
+                console.print(
+                    f"  [green]LOCK[/green] [{dp.category.value}] "
+                    f"{dp.question} -> [bold]{dp.chosen}[/bold]"
+                )
+            elif dp.id == target_dp.id:
+                console.print(
+                    f"  [yellow]OVERRIDE[/yellow] [{dp.category.value}] "
+                    f"{dp.question} -> [bold]{choice}[/bold]"
+                )
+            else:
+                console.print(
+                    f"  [blue]FREE[/blue] [{dp.category.value}] "
+                    f"{dp.question}"
+                )
+
+        console.print()
 
         agent = _build_agent(settings)
+        engine = ForkEngine(agent=agent, trace_store=store)
 
         event_handler = None
         if verbose:
             from src.cli.event_handler import RichEventHandler
             event_handler = RichEventHandler()
 
-        trace = await agent.run(
-            task=source_trace.metadata.task_description,
-            lock_config=lock_config,
+        forked_trace, comparison = await engine.fork(
+            source_run_id=run_id,
+            decision_id=decision,
+            new_choice=choice,
             event_handler=event_handler,
         )
 
-        return source_trace, trace
+        return source_trace, forked_trace, comparison
 
-    source_trace, forked_trace = _run_async(_fork())
+    source_trace, forked_trace, comparison = _run_async(_fork())
 
     console.print(
         f"\n[bold cyan]Forked Run ID: {forked_trace.metadata.run_id}[/bold cyan]"
     )
+    console.print(
+        f"[dim]Parent: {forked_trace.metadata.parent_run_id} | "
+        f"Fork point: {forked_trace.metadata.fork_point}[/dim]"
+    )
 
     if compare:
-        _show_comparison(source_trace, forked_trace)
+        _show_comparison_from_result(comparison, source_trace, forked_trace)
 
 
 # ── compare ──────────────────────────────────────────────────────────────────
@@ -542,8 +563,11 @@ def fork(run_id, decision, choice, compare, verbose):
 )
 def compare(run_id_1, run_id_2, fmt):
     """Compare two runs side by side."""
+    from src.analysis.comparator import RunComparator
+
     settings = _get_settings()
     store = _build_trace_store(settings)
+    comparator = RunComparator()
 
     async def _compare():
         t1 = await store.get_trace(run_id_1)
@@ -557,73 +581,180 @@ def compare(run_id_1, run_id_2, fmt):
         return t1, t2
 
     t1, t2 = _run_async(_compare())
+    comparison = comparator.compare(t1, t2)
 
     if fmt == "json":
-        data = _build_comparison_data(t1, t2)
-        console.print_json(json.dumps(data, indent=2, default=str))
+        console.print_json(json.dumps(comparison.model_dump(mode="json"), indent=2, default=str))
     else:
-        _show_comparison(t1, t2)
+        _show_comparison_from_result(comparison, t1, t2)
 
 
-def _show_comparison(t1, t2):
-    """Show a side-by-side comparison of two traces."""
-    table = Table(title=f"Comparison: {t1.metadata.run_id} vs {t2.metadata.run_id}")
+def _show_comparison_from_result(comparison, t1, t2):
+    """Show a side-by-side comparison using a RunComparison result."""
+    table = Table(title=f"Comparison: {comparison.run_a_id} vs {comparison.run_b_id}")
     table.add_column("Category", style="cyan")
     table.add_column("Question")
-    table.add_column(f"{t1.metadata.run_id}", style="bold")
-    table.add_column(f"{t2.metadata.run_id}", style="bold")
+    table.add_column(f"{comparison.run_a_id}", style="bold")
+    table.add_column(f"{comparison.run_b_id}", style="bold")
     table.add_column("Match", justify="center")
 
-    # Match decisions by category + question
-    d1_map = {(dp.category.value, dp.question): dp for dp in t1.decisions}
-    d2_map = {(dp.category.value, dp.question): dp for dp in t2.decisions}
-
-    all_keys = list(dict.fromkeys(list(d1_map.keys()) + list(d2_map.keys())))
-
-    for key in all_keys:
-        dp1 = d1_map.get(key)
-        dp2 = d2_map.get(key)
-        cat, question = key
-        val1 = dp1.chosen if dp1 else "[dim]—[/dim]"
-        val2 = dp2.chosen if dp2 else "[dim]—[/dim]"
-        match = "[green]=[/green]" if dp1 and dp2 and dp1.chosen == dp2.chosen else "[red]≠[/red]"
-        table.add_row(cat, question, val1, val2, match)
+    for alignment in comparison.decision_alignment:
+        val_a = alignment.run_a_choice or "[dim]—[/dim]"
+        val_b = alignment.run_b_choice or "[dim]—[/dim]"
+        match_str = "[green]=[/green]" if alignment.match else "[red]≠[/red]"
+        table.add_row(
+            alignment.category.value,
+            alignment.question,
+            val_a,
+            val_b,
+            match_str,
+        )
 
     console.print(table)
 
-    # Cost comparison
+    # Variance score
     console.print(
-        f"\n[dim]Cost: {t1.metadata.run_id}=${t1.metadata.total_cost_usd:.4f} | "
-        f"{t2.metadata.run_id}=${t2.metadata.total_cost_usd:.4f}[/dim]"
+        f"\n[bold]Variance Score:[/bold] {comparison.variance_score:.2f} "
+        f"(0.00 = identical, 1.00 = completely different)"
+    )
+
+    # Cost comparison
+    cost_a = comparison.outcome_diff.total_cost_usd.get(comparison.run_a_id, 0.0)
+    cost_b = comparison.outcome_diff.total_cost_usd.get(comparison.run_b_id, 0.0)
+    console.print(
+        f"[dim]Cost: {comparison.run_a_id}=${cost_a:.4f} | "
+        f"{comparison.run_b_id}=${cost_b:.4f}[/dim]"
     )
 
 
-def _build_comparison_data(t1, t2) -> dict:
-    """Build a JSON-serializable comparison between two traces."""
-    d1_map = {(dp.category.value, dp.question): dp for dp in t1.decisions}
-    d2_map = {(dp.category.value, dp.question): dp for dp in t2.decisions}
-    all_keys = list(dict.fromkeys(list(d1_map.keys()) + list(d2_map.keys())))
+def _show_comparison(t1, t2):
+    """Show a side-by-side comparison of two traces (legacy)."""
+    from src.analysis.comparator import RunComparator
+    comparison = RunComparator().compare(t1, t2)
+    _show_comparison_from_result(comparison, t1, t2)
 
-    comparisons = []
-    for key in all_keys:
-        dp1 = d1_map.get(key)
-        dp2 = d2_map.get(key)
-        cat, question = key
-        comparisons.append({
-            "category": cat,
-            "question": question,
-            "run_1": dp1.chosen if dp1 else None,
-            "run_2": dp2.chosen if dp2 else None,
-            "match": dp1 is not None and dp2 is not None and dp1.chosen == dp2.chosen,
-        })
 
-    return {
-        "run_1": t1.metadata.run_id,
-        "run_2": t2.metadata.run_id,
-        "decisions": comparisons,
-        "cost_1": t1.metadata.total_cost_usd,
-        "cost_2": t2.metadata.total_cost_usd,
-    }
+# ── analyze ──────────────────────────────────────────────────────────────────
+
+
+@cli.command()
+@click.option("--runs", "-r", default=None, help="Comma-separated run IDs (default: all)")
+@click.option(
+    "--format", "fmt",
+    type=click.Choice(["tree", "json"]),
+    default="tree",
+)
+def analyze(runs, fmt):
+    """Cross-run path analysis: decision tree, variance, outcome correlation."""
+    from src.analysis.path_analyzer import PathAnalyzer
+
+    settings = _get_settings()
+    store = _build_trace_store(settings)
+    analyzer = PathAnalyzer(trace_store=store)
+
+    run_ids = [r.strip() for r in runs.split(",")] if runs else None
+
+    async def _analyze():
+        return await analyzer.analyze(run_ids=run_ids)
+
+    result = _run_async(_analyze())
+
+    if result.total_runs == 0:
+        console.print("[dim]No runs found to analyze.[/dim]")
+        return
+
+    if fmt == "json":
+        console.print_json(json.dumps(result.model_dump(mode="json"), indent=2, default=str))
+        return
+
+    # ── Decision Tree ────────────────────────────────────────────────────
+    console.print()
+    tree = Tree(f"[bold]Decision tree across {result.total_runs} runs[/bold]")
+
+    # The root has one branch "root" with children = decision nodes
+    root_data = result.decision_tree
+    children = []
+    if root_data.get("branches"):
+        for branch in root_data["branches"]:
+            children = branch.get("children", [])
+
+    # Find highest variance question for marking
+    highest_var_q = ""
+    if result.variance_by_decision:
+        highest_var_q = result.variance_by_decision[0].question
+
+    for node in children:
+        question = node.get("question", "?")
+        category = node.get("category", "")
+        var_marker = " [bold red]HIGHEST VARIANCE[/bold red]" if question == highest_var_q else ""
+        node_branch = tree.add(
+            f"[cyan]{category}[/cyan]: {question}{var_marker}"
+        )
+        for branch in node.get("branches", []):
+            choice = branch.get("choice", "?")
+            count = branch.get("count", 0)
+            run_ids_list = branch.get("run_ids", [])
+            run_str = ", ".join(run_ids_list[:5])
+            if len(run_ids_list) > 5:
+                run_str += f" +{len(run_ids_list) - 5} more"
+            node_branch.add(
+                f"[bold]{choice}[/bold] ({count} run{'s' if count != 1 else ''}) "
+                f"[dim]-> [{run_str}][/dim]"
+            )
+
+    console.print(tree)
+
+    # ── Variance Ranking Table ───────────────────────────────────────────
+    if result.variance_by_decision:
+        console.print()
+        var_table = Table(title="Variance Ranking")
+        var_table.add_column("Decision", style="cyan")
+        var_table.add_column("Category", style="dim")
+        var_table.add_column("Unique Choices", justify="right")
+        var_table.add_column("Entropy", justify="right")
+        var_table.add_column("Most Common", style="bold")
+        var_table.add_column("Samples", justify="right")
+        var_table.add_column("Highest?", justify="center")
+
+        for i, v in enumerate(result.variance_by_decision):
+            highest = "[bold red]Yes[/bold red]" if i == 0 and v.entropy > 0 else ""
+            var_table.add_row(
+                v.question,
+                v.category.value,
+                str(len(v.unique_choices)),
+                f"{v.entropy:.3f}",
+                v.most_common,
+                str(v.samples),
+                highest,
+            )
+
+        console.print(var_table)
+
+    # ── Outcome Correlations ─────────────────────────────────────────────
+    if result.outcome_correlations:
+        console.print()
+        corr_table = Table(title="Outcome Correlations")
+        corr_table.add_column("Decision", style="cyan")
+        corr_table.add_column("Choice", style="bold")
+        corr_table.add_column("Success Rate", justify="right")
+        corr_table.add_column("Avg Cost", justify="right")
+        corr_table.add_column("Avg Code Lines", justify="right")
+
+        for corr in result.outcome_correlations:
+            for choice in sorted(corr.success_rate_by_choice.keys()):
+                rate = corr.success_rate_by_choice.get(choice, 0.0)
+                cost = corr.avg_cost_by_choice.get(choice, 0.0)
+                lines = corr.avg_code_lines_by_choice.get(choice, 0.0)
+                rate_style = "green" if rate >= 0.8 else "yellow" if rate >= 0.5 else "red"
+                corr_table.add_row(
+                    corr.question,
+                    choice,
+                    f"[{rate_style}]{rate:.0%}[/{rate_style}]",
+                    f"${cost:.4f}",
+                    f"{lines:.0f}",
+                )
+
+        console.print(corr_table)
 
 
 # ── estimate ─────────────────────────────────────────────────────────────────
