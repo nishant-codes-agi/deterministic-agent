@@ -6,17 +6,33 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 from src.models.decisions import DecisionPoint
+from src.models.enums import DecisionCategory
 
 
 class PathLocker(ABC):
-    """Abstract base for path locking mechanisms."""
+    """Abstract base for path locking mechanisms.
+
+    Locks decisions from a source trace so that a new run follows the same
+    decision path. Supports full lock, partial lock (by IDs, sequence, or
+    category), and fork lock (override one decision, lock the rest).
+    """
 
     @abstractmethod
-    def is_locked(self, decision_id: str) -> bool:
-        """Check if a decision is locked.
+    def is_locked(
+        self,
+        question: str,
+        category: DecisionCategory,
+        sequence_number: int,
+    ) -> bool:
+        """Check if a decision at this point should be locked.
+
+        Match by question text similarity, not just ID (because IDs may
+        differ across runs). Uses normalized question matching.
 
         Args:
-            decision_id: The decision point ID to check.
+            question: The decision question text.
+            category: The decision category.
+            sequence_number: The ordinal position in the run.
 
         Returns:
             True if the decision is locked.
@@ -24,11 +40,16 @@ class PathLocker(ABC):
         ...
 
     @abstractmethod
-    def get_locked_value(self, decision_id: str) -> Optional[str]:
-        """Get the locked value for a decision.
+    def get_locked_value(
+        self,
+        question: str,
+        category: DecisionCategory,
+    ) -> Optional[str]:
+        """Get the value to lock to. Returns None if not locked.
 
         Args:
-            decision_id: The decision point ID.
+            question: The decision question text.
+            category: The decision category.
 
         Returns:
             The locked value, or None if not locked.
@@ -37,7 +58,7 @@ class PathLocker(ABC):
 
     @abstractmethod
     def get_lock_prompt(self, question: str, locked_value: str) -> str:
-        """Generate the prompt injection text for a locked decision.
+        """Generate prompt injection text for a locked decision.
 
         Args:
             question: The decision question.
@@ -60,4 +81,22 @@ class PathLocker(ABC):
         Returns:
             True if valid.
         """
+        ...
+
+    @abstractmethod
+    def get_all_lock_prompts(self) -> str:
+        """Generate combined prompt injection text for ALL locked decisions.
+
+        Used to inject into the planning prompt upfront so the LLM sees
+        all constraints at once.
+
+        Returns:
+            Combined prompt text for all locked decisions.
+        """
+        ...
+
+    @property
+    @abstractmethod
+    def verification_failures(self) -> list[dict]:
+        """Return list of verification failures encountered during the run."""
         ...
