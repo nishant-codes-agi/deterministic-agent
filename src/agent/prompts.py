@@ -25,7 +25,7 @@ For every decision you make, you MUST output structured reasoning with:
 - Your confidence level (0.0-1.0)
 
 Decision categories: data_selection, algorithm_selection, architecture, \
-library_selection, error_recovery, parameter_tuning
+library_selection, error_recovery, parameter_tuning, output_format
 """
 
 
@@ -61,7 +61,7 @@ Identify the key decisions required by THIS specific task. For each decision are
 - Assign a confidence score (0.0–1.0)
 
 Typical decision categories: data_selection, algorithm_selection, architecture, \
-library_selection, error_recovery, parameter_tuning
+library_selection, error_recovery, parameter_tuning, output_format
 
 Respond with ONLY valid JSON in this exact format (no preamble, no markdown fences):
 {{
@@ -119,8 +119,8 @@ REQUIREMENTS:
 - Write complete, runnable Python code (not pseudocode)
 - Pull real data from yfinance (no mocked datasets)
 - Detect anomalies using the chosen method
-- Generate a summary report
-- Expose results through a simple API endpoint
+- Save a matplotlib chart to anomalies.png highlighting anomalous days
+- Save a JSON report to anomaly_report.json with anomalous dates and returns
 - Include proper error handling
 - Include a requirements.txt with all dependencies
 - The main entry point should be main.py with an `if __name__ == "__main__"` block

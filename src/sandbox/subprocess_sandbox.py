@@ -136,14 +136,15 @@ class SubprocessSandbox(SandboxProvider):
         workspace = self._runs_dir / run_id / "workspace"
         workspace.mkdir(parents=True, exist_ok=True)
 
-        # Create a Python venv inside the workspace
+        # Create a Python venv inside the workspace, inheriting system packages
+        # to avoid reinstalling large deps (yfinance, matplotlib, etc.) each run.
         result = await self.execute(
-            f"{self._python} -m venv {workspace / '.venv'}",
+            f"{self._python} -m venv --system-site-packages {workspace / '.venv'}",
             cwd=workspace,
             timeout=60,
         )
         if result.exit_code != 0:
-            logger.warning(f"Failed to create venv for {run_id}: {result.stderr}")
+            raise RuntimeError(f"Failed to create venv for {run_id}: {result.stderr}")
 
         logger.info(f"Workspace created: {workspace}")
         return workspace

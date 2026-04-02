@@ -26,10 +26,13 @@ from src.sandbox.subprocess_sandbox import SubprocessSandbox
 from src.tracing.store import TraceStore
 
 TASK = """\
-Pull stock data from yfinance (you choose which ticker(s), timeframe, and indicators),
-detect anomalous trading days using a statistical method of your choosing,
-generate a summary report with visualizations, and expose the results through
-a simple API endpoint.\
+Using yfinance, fetch 1 year of daily OHLCV data for AAPL. Detect anomalous \
+trading days by applying a statistical method of your choice (e.g. Z-score on \
+log returns, IQR filtering, or rolling-window standard deviation). Produce: \
+(1) a matplotlib chart saved to anomalies.png that highlights the anomalous days \
+on the price series, and (2) a JSON report file anomaly_report.json containing \
+the list of anomalous dates and their return values. Write everything in a single \
+main.py with a clear if __name__ == "__main__" block. No API server needed.\
 """
 
 NUM_RUNS = 5
@@ -81,11 +84,17 @@ async def record_five_runs() -> list:
         print(f"RUN {i + 1}/{NUM_RUNS}")
         print(f"{'=' * 60}\n")
 
+        run_id = None
         try:
             trace = await agent.run(TASK)
+            run_id = trace.metadata.run_id
         except Exception as e:
             print(f"Run {i + 1} failed with exception: {e}")
             continue
+        finally:
+            # Always clean up the workspace to free disk space
+            if run_id:
+                await sandbox.cleanup_workspace(run_id)
 
         # Print summary
         print(f"Run ID: {trace.metadata.run_id}")

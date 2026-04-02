@@ -34,6 +34,7 @@ class DecisionCategory(str, enum.Enum):
     LIBRARY_SELECTION = "library_selection"
     ERROR_RECOVERY = "error_recovery"
     PARAMETER_TUNING = "parameter_tuning"
+    OUTPUT_FORMAT = "output_format"
 
 
 class VarianceTier(str, enum.Enum):

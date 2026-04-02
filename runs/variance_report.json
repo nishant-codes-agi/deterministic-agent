@@ -1,0 +1,172 @@
+{
+  "generated_at": "2026-04-02T18:03:32.251170+00:00",
+  "total_runs": 5,
+  "successful_runs": 5,
+  "llm_strategy": "multi-model via OpenRouter",
+  "model_routing": {
+    "planning": "google/gemini-2.5-flash",
+    "coding": "anthropic/claude-sonnet-4",
+    "evaluation": "openai/gpt-4o-mini",
+    "recovery": "anthropic/claude-sonnet-4"
+  },
+  "unique_tickers": [
+    "1 year of daily data ending today.",
+    "Adjusted Close price"
+  ],
+  "unique_methods": [
+    "Log returns (ln(P_t / P_{t-1}))",
+    "Z-score on log returns",
+    "np.log(df['Close'] / df['Close'].shift(1))"
+  ],
+  "unique_frameworks": [],
+  "decision_variance": {
+    "library_selection": {
+      "question": "how to visualize the anomalies on the price series?",
+      "unique_values": 1,
+      "values": [
+        "Matplotlib"
+      ],
+      "entropy": 0.0,
+      "most_common": "Matplotlib",
+      "samples": 4
+    },
+    "anomaly_method": {
+      "question": "what information to include in the json anomaly report?",
+      "unique_values": 1,
+      "values": [
+        "Date, log return, Z-score, and adjusted close price"
+      ],
+      "entropy": 0.0,
+      "most_common": "Date, log return, Z-score, and adjusted close price",
+      "samples": 1
+    },
+    "algorithm_selection": {
+      "question": "how to calculate log returns?",
+      "unique_values": 1,
+      "values": [
+        "np.log(df['Close'] / df['Close'].shift(1))"
+      ],
+      "entropy": 0.0,
+      "most_common": "np.log(df['Close'] / df['Close'].shift(1))",
+      "samples": 4
+    },
+    "architecture": {
+      "question": "how to highlight anomalous days on the matplotlib chart?",
+      "unique_values": 1,
+      "values": [
+        "Plotting anomalous points as distinct markers/colors on the same price series plot."
+      ],
+      "entropy": 0.0,
+      "most_common": "Plotting anomalous points as distinct markers/colors on the same price series plot.",
+      "samples": 4
+    },
+    "output_format": {
+      "question": "how to highlight anomalies on the matplotlib chart?",
+      "unique_values": 1,
+      "values": [
+        "Scatter plot markers on anomalous days"
+      ],
+      "entropy": 0.0,
+      "most_common": "Scatter plot markers on anomalous days",
+      "samples": 1
+    },
+    "ticker_selection": {
+      "question": "how to handle potential errors during data fetching (e.g., network issues, invalid ticker)?",
+      "unique_values": 2,
+      "values": [
+        "Implement try-except blocks for yfinance data download.",
+        "Try-except block for yfinance download"
+      ],
+      "entropy": 0.7219,
+      "most_common": "Implement try-except blocks for yfinance data download.",
+      "samples": 5
+    },
+    "data_selection": {
+      "question": "which price series to use for calculating returns?",
+      "unique_values": 1,
+      "values": [
+        "Adjusted Close price"
+      ],
+      "entropy": 0.0,
+      "most_common": "Adjusted Close price",
+      "samples": 1
+    },
+    "error_recovery": {
+      "question": "how to handle the keyerror for 'adj close' column?",
+      "unique_values": 1,
+      "values": [
+        "dynamic_column_detection"
+      ],
+      "entropy": 0.0,
+      "most_common": "dynamic_column_detection",
+      "samples": 1
+    }
+  },
+  "cost_summary": {
+    "total_all_runs_usd": 0.388914,
+    "avg_per_run_usd": 0.077783,
+    "cost_by_model": {
+      "anthropic/claude-4-sonnet-20250522": 0.354933,
+      "google/gemini-2.5-flash": 0.033183,
+      "openai/gpt-4o-mini": 0.000798
+    },
+    "cost_by_phase": {
+      "coding": 0.288456,
+      "evaluating": 0.000798,
+      "planning": 0.033183,
+      "recovering": 0.066477
+    }
+  },
+  "runs": [
+    {
+      "run_id": "run-03bb37fe",
+      "status": "success",
+      "ticker": "1 year of daily data ending today.",
+      "method": "Z-score on log returns",
+      "cost_usd": 0.052451,
+      "models_used": 3,
+      "iterations": 1,
+      "decisions_count": 9
+    },
+    {
+      "run_id": "run-ef94e306",
+      "status": "success",
+      "ticker": "1 year of daily data ending today.",
+      "method": "Z-score on log returns",
+      "cost_usd": 0.051968,
+      "models_used": 3,
+      "iterations": 1,
+      "decisions_count": 9
+    },
+    {
+      "run_id": "run-de103a6c",
+      "status": "success",
+      "ticker": "1 year of daily data ending today.",
+      "method": "Z-score on log returns",
+      "cost_usd": 0.053479,
+      "models_used": 3,
+      "iterations": 1,
+      "decisions_count": 9
+    },
+    {
+      "run_id": "run-17bedf73",
+      "status": "success",
+      "ticker": "1 year of daily data ending today.",
+      "method": "Z-score on log returns",
+      "cost_usd": 0.051035,
+      "models_used": 3,
+      "iterations": 1,
+      "decisions_count": 9
+    },
+    {
+      "run_id": "run-0609b36f",
+      "status": "success",
+      "ticker": "Adjusted Close price",
+      "method": "Z-score on log returns",
+      "cost_usd": 0.179981,
+      "models_used": 3,
+      "iterations": 2,
+      "decisions_count": 8
+    }
+  ]
+}
