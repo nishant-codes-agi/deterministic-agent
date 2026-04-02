@@ -34,6 +34,7 @@ from src.agent.prompts import (
     planning_prompt,
     recovery_prompt,
 )
+from src.cache.tiered import TieredCache
 from src.config import AgentConfig, LLMConfig
 from src.llm.base import LLMMessage, LLMProvider, LLMResponse
 from src.models.decisions import (
@@ -44,6 +45,9 @@ from src.models.decisions import (
 from src.models.enums import AgentPhase, RunStatus
 from src.models.traces import DecisionTrace, PathLockConfig, RunMetadata
 from src.sandbox.base import SandboxProvider
+from src.tracing.base import DecisionTracer
+from src.tracing.cost_tracker import CostLimitExceededError, CostTracker
+from src.tracing.tracer import PersistentTracer
 
 logger = logging.getLogger(__name__)
 
@@ -67,11 +71,17 @@ class AgentRunner(CodingAgent):
         sandbox: SandboxProvider,
         config: AgentConfig,
         llm_config: LLMConfig,
+        runs_dir: Optional[Path] = None,
+        cache: Optional[TieredCache] = None,
+        db_session_factory=None,
     ) -> None:
         self._llm = llm
         self._sandbox = sandbox
         self._config = config
         self._llm_config = llm_config
+        self._runs_dir = runs_dir or Path("./runs")
+        self._cache = cache
+        self._db_session_factory = db_session_factory
         self._event_handler: Optional[EventHandler] = None
 
     def _get_model(self, phase: AgentPhase) -> str:
@@ -86,17 +96,38 @@ class AgentRunner(CodingAgent):
     ) -> DecisionTrace:
         """Execute the agent on a task.
 
-        Runs the full Plan -> Code -> Execute -> Evaluate loop, collecting
-        decisions, execution records, and LLM call records along the way.
+        Runs the full Plan -> Code -> Execute -> Evaluate loop, using
+        PersistentTracer for incremental decision trace persistence.
         """
         self._event_handler = event_handler
         run_id = f"run-{uuid4().hex[:8]}"
         workspace = await self._sandbox.setup_workspace(run_id)
 
-        # Accumulators for trace data (replaced by PersistentTracer in Phase 4)
-        decisions: list[DecisionPoint] = []
-        executions: list[ExecutionRecord] = []
-        llm_calls: list[LLMCallRecord] = []
+        # Get optional DB session
+        db_session = None
+        if self._db_session_factory:
+            db_session = self._db_session_factory()
+
+        # Build cost tracker
+        redis_cache = None
+        if self._cache and hasattr(self._cache, '_l2') and hasattr(self._cache._l2, 'increment_cost'):
+            redis_cache = self._cache._l2
+        cost_tracker = CostTracker(
+            run_id=run_id,
+            max_cost_usd=self._config.max_cost_usd,
+            redis=redis_cache,
+        )
+
+        # Build the PersistentTracer
+        tracer = PersistentTracer(
+            run_id=run_id,
+            task=task,
+            runs_dir=self._runs_dir,
+            db_session=db_session,
+            cache=self._cache,
+            llm_config=self._llm_config,
+            cost_tracker=cost_tracker,
+        )
 
         try:
             # Phase 1: PLANNING (uses Gemini 2.5 Flash)
@@ -106,9 +137,10 @@ class AgentRunner(CodingAgent):
                 phase=AgentPhase.PLANNING,
             ))
             plan, plan_decisions = await self._plan(
-                task, run_id, decisions, llm_calls, lock_config
+                task, run_id, tracer, lock_config
             )
-            decisions.extend(plan_decisions)
+            for dp in plan_decisions:
+                await tracer.record_decision(dp)
 
             # Track code state across iterations
             code_files: dict[str, str] = {}
@@ -123,12 +155,13 @@ class AgentRunner(CodingAgent):
                     phase=AgentPhase.CODING,
                 ))
 
+                decisions = await tracer.get_decisions()
                 previous_error = ""
-                if executions and executions[-1].exit_code != 0:
-                    previous_error = executions[-1].stderr
+                if tracer._executions and tracer._executions[-1].exit_code != 0:
+                    previous_error = tracer._executions[-1].stderr
 
                 code_files, requirements = await self._code(
-                    task, plan, decisions, llm_calls, run_id,
+                    task, plan, decisions, tracer, run_id,
                     iteration=iteration,
                     previous_error=previous_error,
                 )
@@ -147,7 +180,7 @@ class AgentRunner(CodingAgent):
                     phase=AgentPhase.EXECUTING,
                 ))
                 exec_result = await self._execute(
-                    workspace, code_files, run_id, executions
+                    workspace, code_files, run_id, tracer
                 )
 
                 # EVALUATING (uses GPT-4o-mini)
@@ -157,19 +190,15 @@ class AgentRunner(CodingAgent):
                     phase=AgentPhase.EVALUATING,
                 ))
                 assessment = await self._evaluate(
-                    exec_result, code_files, task, decisions, llm_calls, run_id
+                    exec_result, code_files, task, tracer, run_id
                 )
 
                 if assessment["status"] == "success":
-                    return self._build_trace(
-                        run_id, task, decisions, executions,
-                        llm_calls, RunStatus.SUCCESS,
-                    )
+                    return await tracer.finalize(RunStatus.SUCCESS)
 
                 if assessment["next_action"] == "abort":
-                    return self._build_trace(
-                        run_id, task, decisions, executions,
-                        llm_calls, RunStatus.FAILED,
+                    return await tracer.finalize(
+                        RunStatus.FAILED,
                         error=assessment["assessment"],
                     )
 
@@ -185,34 +214,42 @@ class AgentRunner(CodingAgent):
                 ))
                 plan, recovery_decisions = await self._recover(
                     task, plan, assessment, code_files,
-                    decisions, executions, llm_calls, run_id,
+                    tracer, run_id,
                 )
-                decisions.extend(recovery_decisions)
+                for dp in recovery_decisions:
+                    await tracer.record_decision(dp)
 
             # Max iterations exceeded
-            return self._build_trace(
-                run_id, task, decisions, executions,
-                llm_calls, RunStatus.FAILED,
+            return await tracer.finalize(
+                RunStatus.FAILED,
                 error="Max iterations exceeded",
             )
 
+        except CostLimitExceededError as e:
+            logger.warning(f"Cost limit exceeded for run {run_id}: {e}")
+            return await tracer.finalize(
+                RunStatus.PARTIAL,
+                error=str(e),
+            )
         except Exception as e:
             logger.exception(f"Agent run {run_id} crashed: {e}")
-            return self._build_trace(
-                run_id, task, decisions, executions,
-                llm_calls, RunStatus.PARTIAL,
+            return await tracer.finalize(
+                RunStatus.PARTIAL,
                 error=str(e),
             )
         finally:
-            # Don't cleanup workspace - keep artifacts for inspection
-            pass
+            # Close DB session if we opened one
+            if db_session:
+                try:
+                    await db_session.close()
+                except Exception:
+                    pass
 
     async def _plan(
         self,
         task: str,
         run_id: str,
-        decisions: list[DecisionPoint],
-        llm_calls: list[LLMCallRecord],
+        tracer: DecisionTracer,
         lock_config: Optional[PathLockConfig] = None,
     ) -> tuple[str, list[DecisionPoint]]:
         """Planning phase: produce structured plan with decisions.
@@ -222,8 +259,7 @@ class AgentRunner(CodingAgent):
         # Build locked decisions string if path locking is active
         locked_str = ""
         if lock_config and lock_config.source_run_id:
-            # For now, lock injection is handled by the caller
-            # Phase 5 will implement full path locking
+            decisions = await tracer.get_decisions()
             locked_str = self._build_lock_injections(lock_config, decisions)
 
         prompt_text = planning_prompt(task, locked_decisions=locked_str)
@@ -233,7 +269,7 @@ class AgentRunner(CodingAgent):
         ]
 
         response = await self._call_llm(
-            messages, AgentPhase.PLANNING, llm_calls, run_id,
+            messages, AgentPhase.PLANNING, tracer, run_id,
             response_format=dict,
         )
 
@@ -242,9 +278,9 @@ class AgentRunner(CodingAgent):
             parsed = parse_json_from_llm(response.content)
         except ParseError as e:
             logger.warning(f"Failed to parse planning response: {e}")
-            # Return empty plan with no decisions
             return "Failed to parse planning response", []
 
+        decisions = await tracer.get_decisions()
         plan_decisions, plan_text = parse_planning_response(
             parsed, sequence_start=len(decisions),
         )
@@ -265,7 +301,7 @@ class AgentRunner(CodingAgent):
         task: str,
         plan: str,
         decisions: list[DecisionPoint],
-        llm_calls: list[LLMCallRecord],
+        tracer: DecisionTracer,
         run_id: str,
         iteration: int = 0,
         previous_error: str = "",
@@ -287,7 +323,7 @@ class AgentRunner(CodingAgent):
         ]
 
         response = await self._call_llm(
-            messages, AgentPhase.CODING, llm_calls, run_id,
+            messages, AgentPhase.CODING, tracer, run_id,
             response_format=dict,
             max_tokens=16384,
         )
@@ -331,7 +367,7 @@ class AgentRunner(CodingAgent):
         workspace: Path,
         code_files: dict[str, str],
         run_id: str,
-        executions: list[ExecutionRecord],
+        tracer: DecisionTracer,
     ) -> ExecutionRecord:
         """Execute the generated code in the sandbox.
 
@@ -368,7 +404,7 @@ class AgentRunner(CodingAgent):
             duration_ms=result.duration_ms,
             artifacts_produced=[str(a) for a in result.artifacts],
         )
-        executions.append(exec_record)
+        await tracer.record_execution(exec_record)
 
         await self._emit(AgentEvent(
             event_type=AgentEventType.EXECUTION_COMPLETED,
@@ -388,8 +424,7 @@ class AgentRunner(CodingAgent):
         exec_result: ExecutionRecord,
         code_files: dict[str, str],
         task: str,
-        decisions: list[DecisionPoint],
-        llm_calls: list[LLMCallRecord],
+        tracer: DecisionTracer,
         run_id: str,
     ) -> dict:
         """Evaluation phase: assess execution results.
@@ -410,7 +445,7 @@ class AgentRunner(CodingAgent):
         ]
 
         response = await self._call_llm(
-            messages, AgentPhase.EVALUATING, llm_calls, run_id,
+            messages, AgentPhase.EVALUATING, tracer, run_id,
             response_format=dict,
         )
 
@@ -440,9 +475,7 @@ class AgentRunner(CodingAgent):
         plan: str,
         assessment: dict,
         code_files: dict[str, str],
-        decisions: list[DecisionPoint],
-        executions: list[ExecutionRecord],
-        llm_calls: list[LLMCallRecord],
+        tracer: DecisionTracer,
         run_id: str,
     ) -> tuple[str, list[DecisionPoint]]:
         """Recovery phase: fix failing code.
@@ -457,8 +490,8 @@ class AgentRunner(CodingAgent):
         ))
 
         last_error = ""
-        if executions:
-            last_exec = executions[-1]
+        if tracer._executions:
+            last_exec = tracer._executions[-1]
             last_error = last_exec.stderr or last_exec.stdout
 
         prompt_text = recovery_prompt(
@@ -476,7 +509,7 @@ class AgentRunner(CodingAgent):
         ]
 
         response = await self._call_llm(
-            messages, AgentPhase.RECOVERING, llm_calls, run_id,
+            messages, AgentPhase.RECOVERING, tracer, run_id,
             response_format=dict,
             max_tokens=16384,
         )
@@ -490,6 +523,7 @@ class AgentRunner(CodingAgent):
                 logger.warning(f"Failed to parse recovery response: {e}")
                 return plan, []
 
+        decisions = await tracer.get_decisions()
         files, requirements, recovery_decisions = parse_recovery_response(
             parsed, sequence_start=len(decisions),
         )
@@ -513,14 +547,14 @@ class AgentRunner(CodingAgent):
         self,
         messages: list[LLMMessage],
         phase: AgentPhase,
-        llm_calls: list[LLMCallRecord],
+        tracer: DecisionTracer,
         run_id: str,
         response_format: Optional[type] = None,
         max_tokens: int = 4096,
     ) -> LLMResponse:
         """Central LLM call method with per-phase model routing.
 
-        Records every call for the decision trace.
+        Records every call via the tracer for the decision trace.
         """
         model = self._get_model(phase)
         response = await self._llm.complete(
@@ -530,7 +564,7 @@ class AgentRunner(CodingAgent):
             max_tokens=max_tokens,
         )
 
-        # Record LLM call
+        # Record LLM call via tracer
         record = LLMCallRecord(
             phase=phase,
             messages=[{"role": m.role, "content": m.content} for m in messages],
@@ -543,7 +577,7 @@ class AgentRunner(CodingAgent):
             latency_ms=response.latency_ms,
             cost_usd=response.cost_usd,
         )
-        llm_calls.append(record)
+        await tracer.record_llm_call(record)
 
         await self._emit(AgentEvent(
             event_type=AgentEventType.COST_UPDATE,
@@ -554,54 +588,11 @@ class AgentRunner(CodingAgent):
                 "cost_usd": response.cost_usd,
                 "tokens_in": response.tokens_in,
                 "tokens_out": response.tokens_out,
-                "total_cost_usd": sum(c.cost_usd for c in llm_calls),
+                "total_cost_usd": sum(c.cost_usd for c in tracer._llm_calls),
             },
         ))
 
         return response
-
-    def _build_trace(
-        self,
-        run_id: str,
-        task: str,
-        decisions: list[DecisionPoint],
-        executions: list[ExecutionRecord],
-        llm_calls: list[LLMCallRecord],
-        status: RunStatus,
-        error: Optional[str] = None,
-    ) -> DecisionTrace:
-        """Construct the complete DecisionTrace from accumulated data."""
-        # Build model routing map
-        model_routing = {
-            "planning": self._get_model(AgentPhase.PLANNING),
-            "coding": self._get_model(AgentPhase.CODING),
-            "evaluating": self._get_model(AgentPhase.EVALUATING),
-            "recovering": self._get_model(AgentPhase.RECOVERING),
-        }
-
-        total_tokens = sum(c.tokens_in + c.tokens_out for c in llm_calls)
-        total_cost = sum(c.cost_usd for c in llm_calls)
-
-        metadata = RunMetadata(
-            run_id=run_id,
-            task_description=task,
-            llm_provider=self._llm.provider_name,
-            model_routing=model_routing,
-            temperature=self._llm_config.temperature,
-            status=status,
-            completed_at=datetime.now(timezone.utc),
-            total_llm_calls=len(llm_calls),
-            total_tokens=total_tokens,
-            total_cost_usd=total_cost,
-            error=error,
-        )
-
-        return DecisionTrace(
-            metadata=metadata,
-            decisions=decisions,
-            executions=executions,
-            llm_calls=llm_calls,
-        )
 
     async def _emit(self, event: AgentEvent) -> None:
         """Emit an event if handler is set."""
