@@ -1,0 +1,27 @@
+{
+  "metadata": {
+    "ticker": "AAPL",
+    "period": "1y",
+    "iqr_multiplier": 1.5,
+    "analysis_date": "2026-04-03T11:07:26.933411",
+    "total_data_points": 251,
+    "anomalies_detected": 0
+  },
+  "statistics": {
+    "price_stats": {
+      "mean": 239.01531781808313,
+      "std": 29.061985762198415,
+      "min": 171.6717987060547,
+      "max": 285.9224548339844,
+      "q1": 209.4526138305664,
+      "q3": 264.26499938964844
+    },
+    "return_stats": {
+      "mean_return": 0.0011183809344931489,
+      "std_return": 0.019095834125192,
+      "min_return": -0.07288749271692252,
+      "max_return": 0.15328838258086197
+    }
+  },
+  "anomalies": []
+}

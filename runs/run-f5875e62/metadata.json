@@ -1,0 +1,22 @@
+{
+  "run_id": "run-f5875e62",
+  "task_description": "Pull stock data and detect anomalies",
+  "llm_provider": "openrouter",
+  "model_routing": {
+    "planning": "test/planning-model",
+    "coding": "test/coding-model",
+    "evaluating": "test/eval-model",
+    "recovering": "test/recovery-model"
+  },
+  "temperature": 0.0,
+  "started_at": "2026-04-02T18:14:51.752674Z",
+  "completed_at": "2026-04-02T18:14:51.785011Z",
+  "status": "failed",
+  "parent_run_id": null,
+  "fork_point": null,
+  "lock_config": null,
+  "total_llm_calls": 7,
+  "total_tokens": 2100,
+  "total_cost_usd": 0.007,
+  "error": "Max iterations exceeded"
+}

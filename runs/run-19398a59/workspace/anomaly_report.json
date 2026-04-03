@@ -1,0 +1,17 @@
+{
+  "analysis_metadata": {
+    "symbol": "AMZN",
+    "analysis_date": "2026-04-03 12:20:22",
+    "period_days": 14,
+    "z_score_threshold": 2.0,
+    "total_anomalies": 0
+  },
+  "summary_statistics": {
+    "mean_return": -0.05,
+    "std_return": 2.21,
+    "min_return": -3.95,
+    "max_return": 3.64,
+    "total_trading_days": 13
+  },
+  "anomalous_days": []
+}

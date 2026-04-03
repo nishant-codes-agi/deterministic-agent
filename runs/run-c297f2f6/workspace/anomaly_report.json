@@ -1,0 +1,11 @@
+{
+  "ticker": "AAPL",
+  "period": {
+    "start": "2025-04-03",
+    "end": "2026-04-03"
+  },
+  "anomaly_column": "Close",
+  "total_data_points": 251,
+  "anomaly_count": 0,
+  "anomalies": []
+}

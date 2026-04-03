@@ -1,0 +1,18 @@
+{
+  "analysis_metadata": {
+    "symbol": "TSLA",
+    "analysis_date": "2026-04-03 11:31:08",
+    "period_days": 14,
+    "z_threshold": 2.0,
+    "data_source": "yfinance"
+  },
+  "summary_statistics": {
+    "mean_return": -0.67,
+    "std_return": 3.07,
+    "min_return": -5.42,
+    "max_return": 4.64,
+    "total_trading_days": 13
+  },
+  "anomalies_detected": 0,
+  "anomalous_days": []
+}
