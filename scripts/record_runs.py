@@ -26,16 +26,19 @@ from src.sandbox.subprocess_sandbox import SubprocessSandbox
 from src.tracing.store import TraceStore
 
 TASK = """\
-Using yfinance, fetch 1 year of daily OHLCV data for AAPL. Detect anomalous \
-trading days by applying a statistical method of your choice (e.g. Z-score on \
-log returns, IQR filtering, or rolling-window standard deviation). Produce: \
-(1) a matplotlib chart saved to anomalies.png that highlights the anomalous days \
-on the price series, and (2) a JSON report file anomaly_report.json containing \
-the list of anomalous dates and their return values. Write everything in a single \
-main.py with a clear if __name__ == "__main__" block. No API server needed.\
+Pull stock data from yfinance — you choose which ticker(s), timeframe, and \
+indicators. Detect anomalous trading days using a statistical method of your \
+choosing. Generate a summary report with visualizations saved to anomalies.png \
+and a JSON report anomaly_report.json. Expose the results through a simple \
+FastAPI endpoint. Write everything in a single main.py with a clear \
+if __name__ == "__main__" block.\
 """
 
 NUM_RUNS = 5
+
+# Use varied temperatures per run to encourage genuinely different decision paths.
+# The first run uses 0.0 (baseline), then increasing temperatures for more variance.
+RUN_TEMPERATURES = [0.0, 0.4, 0.7, 0.9, 1.0]
 
 
 def _shannon_entropy(values: list[str]) -> float:
@@ -67,21 +70,25 @@ def _most_common(values: list[str]) -> str:
 async def record_five_runs() -> list:
     """Execute 5 agent runs and return their traces."""
     settings = get_settings()
-    llm = create_llm_provider(settings.llm)
     sandbox = SubprocessSandbox(runs_dir=settings.runs_dir)
-
-    agent = AgentRunner(
-        llm=llm,
-        sandbox=sandbox,
-        config=settings.agent,
-        llm_config=settings.llm,
-        runs_dir=settings.runs_dir,
-    )
 
     traces = []
     for i in range(NUM_RUNS):
+        # Use a different temperature for each run to encourage decision variance
+        temp = RUN_TEMPERATURES[i] if i < len(RUN_TEMPERATURES) else 0.7
+        llm_config = settings.llm.model_copy(update={"temperature": temp})
+        llm = create_llm_provider(llm_config)
+
+        agent = AgentRunner(
+            llm=llm,
+            sandbox=sandbox,
+            config=settings.agent,
+            llm_config=llm_config,
+            runs_dir=settings.runs_dir,
+        )
+
         print(f"\n{'=' * 60}")
-        print(f"RUN {i + 1}/{NUM_RUNS}")
+        print(f"RUN {i + 1}/{NUM_RUNS}  (temperature={temp})")
         print(f"{'=' * 60}\n")
 
         run_id = None
