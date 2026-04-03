@@ -62,6 +62,7 @@ class CodingAgent(ABC):
         task: str,
         lock_config: Optional[PathLockConfig] = None,
         event_handler: Optional[EventHandler] = None,
+        run_id: Optional[str] = None,
     ) -> DecisionTrace:
         """Execute the agent on a task.
 
@@ -69,6 +70,7 @@ class CodingAgent(ABC):
             task: Natural language task description.
             lock_config: Optional path locking configuration.
             event_handler: Optional event handler for observability.
+            run_id: Optional run ID to use. If None, a new one is generated.
 
         Returns:
             Complete decision trace of the run.

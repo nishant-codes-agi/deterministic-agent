@@ -36,6 +36,7 @@ class ForkEngine:
         decision_id: str,
         new_choice: str,
         event_handler: Optional[EventHandler] = None,
+        run_id: Optional[str] = None,
     ) -> tuple[DecisionTrace, RunComparison]:
         """Fork a run at a specific decision point.
 
@@ -94,6 +95,7 @@ class ForkEngine:
             task=source.metadata.task_description,
             lock_config=lock_config,
             event_handler=event_handler,
+            run_id=run_id,
         )
 
         # Set fork metadata
