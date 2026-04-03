@@ -1,0 +1,179 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>META Stock Anomaly Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .header { background-color: #f0f0f0; padding: 20px; border-radius: 5px; }
+        .summary { margin: 20px 0; }
+        table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .anomaly { background-color: #ffebee; font-weight: bold; }
+        .positive { color: green; }
+        .negative { color: red; }
+        .stats { background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>META Stock Anomaly Detection Report</h1>
+        <p>Generated on: 2026-04-03 12:54:50</p>
+    </div>
+    
+    <div class="summary">
+        <h2>Analysis Summary</h2>
+        <div class="stats">
+            <p><strong>Analysis Period:</strong> 2026-03-16 to 2026-04-02</p>
+            <p><strong>Total Trading Days:</strong> 14</p>
+            <p><strong>Anomalous Days Detected:</strong> 2</p>
+            <p><strong>Anomaly Rate:</strong> 14.3%</p>
+            <p><strong>Mean Daily Return:</strong> -0.62%</p>
+            <p><strong>Standard Deviation:</strong> 3.42%</p>
+            <p><strong>Z-Score Threshold:</strong> ±2.0</p>
+        </div>
+    </div>
+    
+    <h2>Daily Trading Data</h2>
+    <table>
+        <tr>
+            <th>Date</th>
+            <th>Close Price</th>
+            <th>Daily Return (%)</th>
+            <th>Z-Score</th>
+            <th>Status</th>
+        </tr>
+
+        <tr class="">
+            <td>2026-03-17</td>
+            <td>$622.66</td>
+            <td class="negative">-0.76%</td>
+            <td>-0.04</td>
+            <td>Normal</td>
+        </tr>
+
+        <tr class="">
+            <td>2026-03-18</td>
+            <td>$615.68</td>
+            <td class="negative">-1.12%</td>
+            <td>-0.15</td>
+            <td>Normal</td>
+        </tr>
+
+        <tr class="">
+            <td>2026-03-19</td>
+            <td>$606.70</td>
+            <td class="negative">-1.46%</td>
+            <td>-0.24</td>
+            <td>Normal</td>
+        </tr>
+
+        <tr class="">
+            <td>2026-03-20</td>
+            <td>$593.66</td>
+            <td class="negative">-2.15%</td>
+            <td>-0.45</td>
+            <td>Normal</td>
+        </tr>
+
+        <tr class="">
+            <td>2026-03-23</td>
+            <td>$604.06</td>
+            <td class="positive">1.75%</td>
+            <td>0.69</td>
+            <td>Normal</td>
+        </tr>
+
+        <tr class="">
+            <td>2026-03-24</td>
+            <td>$592.92</td>
+            <td class="negative">-1.84%</td>
+            <td>-0.36</td>
+            <td>Normal</td>
+        </tr>
+
+        <tr class="">
+            <td>2026-03-25</td>
+            <td>$594.89</td>
+            <td class="positive">0.33%</td>
+            <td>0.28</td>
+            <td>Normal</td>
+        </tr>
+
+        <tr class="anomaly">
+            <td>2026-03-26</td>
+            <td>$547.54</td>
+            <td class="negative">-7.96%</td>
+            <td>-2.15</td>
+            <td>ANOMALY</td>
+        </tr>
+
+        <tr class="">
+            <td>2026-03-27</td>
+            <td>$525.72</td>
+            <td class="negative">-3.99%</td>
+            <td>-0.98</td>
+            <td>Normal</td>
+        </tr>
+
+        <tr class="">
+            <td>2026-03-30</td>
+            <td>$536.38</td>
+            <td class="positive">2.03%</td>
+            <td>0.78</td>
+            <td>Normal</td>
+        </tr>
+
+        <tr class="anomaly">
+            <td>2026-03-31</td>
+            <td>$572.13</td>
+            <td class="positive">6.67%</td>
+            <td>2.13</td>
+            <td>ANOMALY</td>
+        </tr>
+
+        <tr class="">
+            <td>2026-04-01</td>
+            <td>$579.23</td>
+            <td class="positive">1.24%</td>
+            <td>0.55</td>
+            <td>Normal</td>
+        </tr>
+
+        <tr class="">
+            <td>2026-04-02</td>
+            <td>$574.46</td>
+            <td class="negative">-0.82%</td>
+            <td>-0.06</td>
+            <td>Normal</td>
+        </tr>
+
+    </table>
+    
+    <h2>Anomalous Days Details</h2>
+<ul>
+            <li><strong>2026-03-26:</strong> 
+                Negative return of -7.96% 
+                (Z-score: -2.15)
+            </li>
+
+            <li><strong>2026-03-31:</strong> 
+                Positive return of 6.67% 
+                (Z-score: 2.13)
+            </li>
+</ul>
+    
+    <div class="summary">
+        <h2>Methodology</h2>
+        <p>This analysis uses Z-score based anomaly detection:</p>
+        <ul>
+            <li>Daily returns are calculated as percentage change in closing price</li>
+            <li>Z-scores are calculated as: (return - mean) / standard_deviation</li>
+            <li>Days with |Z-score| > 2.0 are flagged as anomalous</li>
+            <li>This corresponds to returns more than 2 standard deviations from the mean</li>
+        </ul>
+    </div>
+    
+</body>
+</html>

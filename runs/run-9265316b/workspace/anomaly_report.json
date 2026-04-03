@@ -1,0 +1,15 @@
+{
+  "ticker": "TSLA",
+  "analysis_date": "2026-04-03T16:49:27.018531",
+  "period": "14d",
+  "total_trading_days": 13,
+  "anomalous_days_count": 0,
+  "z_score_threshold": 2.0,
+  "statistics": {
+    "mean_daily_return": -0.0066601831971062194,
+    "std_daily_return": 0.03065340056599519,
+    "min_daily_return": -0.05421500524128142,
+    "max_daily_return": 0.04635780589195071
+  },
+  "anomalous_days": []
+}

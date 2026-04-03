@@ -1,0 +1,22 @@
+{
+  "run_id": "run-29d1733c",
+  "task_description": "1. Pull AMZN stock data from yfinance for the last 14 days. 2. Detect anomalous trading days where the daily return Z-score is > 2 or < -2. 3. Generate a summary report in html format.",
+  "llm_provider": "openrouter",
+  "model_routing": {
+    "planning": "google/gemini-2.5-flash",
+    "coding": "anthropic/claude-sonnet-4",
+    "evaluating": "openai/gpt-4o-mini",
+    "recovering": "anthropic/claude-sonnet-4"
+  },
+  "temperature": 0.0,
+  "started_at": "2026-04-03T12:29:19.901937Z",
+  "completed_at": "2026-04-03T12:30:56.576494Z",
+  "status": "success",
+  "parent_run_id": null,
+  "fork_point": null,
+  "lock_config": null,
+  "total_llm_calls": 3,
+  "total_tokens": 9878,
+  "total_cost_usd": 0.0977858,
+  "error": null
+}

@@ -1,0 +1,19 @@
+{
+  "analysis_info": {
+    "ticker": "AMZN",
+    "analysis_period": {
+      "start_date": "2026-03-20",
+      "end_date": "2026-04-02"
+    },
+    "total_trading_days": 10,
+    "z_score_threshold": 2.0,
+    "anomalies_detected": 0
+  },
+  "statistics": {
+    "mean_daily_return": 0.0026150943981315183,
+    "std_daily_return": 0.024008291874727236,
+    "min_daily_return": -0.039510442389467326,
+    "max_daily_return": 0.03642700888472339
+  },
+  "anomalous_days": []
+}

@@ -1,0 +1,22 @@
+{
+  "run_id": "run-cfff9aa9",
+  "task_description": " 1. Pull META stock data from yfinance for the last 14 days. 2. Detect anomalous trading days where the daily return Z-score is > 2 or < -2. 3. Generate a summary report in markdown format.",
+  "llm_provider": "openrouter",
+  "model_routing": {
+    "planning": "google/gemini-2.5-flash",
+    "coding": "anthropic/claude-sonnet-4",
+    "evaluating": "openai/gpt-4o-mini",
+    "recovering": "anthropic/claude-sonnet-4"
+  },
+  "temperature": 0.0,
+  "started_at": "2026-04-03T11:15:02.092302Z",
+  "completed_at": "2026-04-03T11:17:56.598593Z",
+  "status": "success",
+  "parent_run_id": null,
+  "fork_point": null,
+  "lock_config": null,
+  "total_llm_calls": 6,
+  "total_tokens": 23340,
+  "total_cost_usd": 0.2104962,
+  "error": null
+}

@@ -1,0 +1,22 @@
+{
+  "run_id": "run-64784d1a",
+  "task_description": "1. Pull TSLA stock data from yfinance for the last 14 days. 2. Detect anomalous trading days where the daily return Z-score is > 2 or < -2. 3. Generate a summary report in markdown format.",
+  "llm_provider": "openrouter",
+  "model_routing": {
+    "planning": "google/gemini-2.5-flash",
+    "coding": "anthropic/claude-sonnet-4",
+    "evaluating": "openai/gpt-4o-mini",
+    "recovering": "anthropic/claude-sonnet-4"
+  },
+  "temperature": 0.0,
+  "started_at": "2026-04-03T11:29:49.226022Z",
+  "completed_at": "2026-04-03T11:31:10.844033Z",
+  "status": "success",
+  "parent_run_id": null,
+  "fork_point": null,
+  "lock_config": null,
+  "total_llm_calls": 3,
+  "total_tokens": 7296,
+  "total_cost_usd": 0.08563605,
+  "error": null
+}
