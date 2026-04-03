@@ -1,0 +1,30 @@
+{
+  "run_id": "run-6f3dd6a4",
+  "task_description": "Pull stock data and detect anomalies",
+  "llm_provider": "openrouter",
+  "model_routing": {
+    "planning": "google/gemini-2.5-flash",
+    "coding": "anthropic/claude-sonnet-4",
+    "evaluating": "openai/gpt-4o-mini",
+    "recovering": "anthropic/claude-sonnet-4"
+  },
+  "temperature": 0.0,
+  "started_at": "2026-04-03T08:13:11.527351Z",
+  "completed_at": "2026-04-03T08:14:19.759364Z",
+  "status": "success",
+  "parent_run_id": "run-fc640f2d",
+  "fork_point": null,
+  "lock_config": {
+    "source_run_id": "run-fc640f2d",
+    "locked_decision_ids": null,
+    "lock_through_sequence": 5,
+    "lock_categories": null,
+    "overrides": {
+      "dp-a69f8b49": "z_score"
+    }
+  },
+  "total_llm_calls": 3,
+  "total_tokens": 7363,
+  "total_cost_usd": 0.0590727,
+  "error": null
+}

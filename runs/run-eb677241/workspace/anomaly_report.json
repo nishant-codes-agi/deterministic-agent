@@ -1,0 +1,150 @@
+{
+  "analysis_info": {
+    "ticker": "META",
+    "analysis_period_days": 14,
+    "start_date": "2026-03-16",
+    "end_date": "2026-04-02",
+    "total_trading_days": 14,
+    "anomalous_days_count": 2,
+    "generated_at": "2026-04-03 13:11:22"
+  },
+  "statistics": {
+    "mean_daily_return": -0.006220545479655977,
+    "std_daily_return": 0.034171521175052746,
+    "min_daily_return": -0.07959460649053962,
+    "max_daily_return": 0.06665050836078534,
+    "anomaly_threshold_zscore": 2.0
+  },
+  "anomalous_days": [
+    {
+      "date": "2026-03-26",
+      "close_price": 547.5399780273438,
+      "daily_return": -0.07959460649053962,
+      "daily_return_percent": -7.9594606490539626,
+      "z_score": -2.147228407977667,
+      "anomaly_type": "negative"
+    },
+    {
+      "date": "2026-03-31",
+      "close_price": 572.1300048828125,
+      "daily_return": 0.06665050836078534,
+      "daily_return_percent": 6.665050836078534,
+      "z_score": 2.132508338365737,
+      "anomaly_type": "positive"
+    }
+  ],
+  "all_trading_days": [
+    {
+      "date": "2026-03-16",
+      "close_price": 627.4500122070312,
+      "daily_return": null,
+      "daily_return_percent": null,
+      "z_score": null,
+      "is_anomalous": false
+    },
+    {
+      "date": "2026-03-17",
+      "close_price": 622.6599731445312,
+      "daily_return": -0.007634136535675906,
+      "daily_return_percent": -0.7634136535675906,
+      "z_score": -0.041367519133211274,
+      "is_anomalous": false
+    },
+    {
+      "date": "2026-03-18",
+      "close_price": 615.6799926757812,
+      "daily_return": -0.011209939244207434,
+      "daily_return_percent": -1.1209939244207434,
+      "z_score": -0.14601029140587432,
+      "is_anomalous": false
+    },
+    {
+      "date": "2026-03-19",
+      "close_price": 606.7000122070312,
+      "daily_return": -0.014585467410955566,
+      "daily_return_percent": -1.4585467410955566,
+      "z_score": -0.24479220250243006,
+      "is_anomalous": false
+    },
+    {
+      "date": "2026-03-20",
+      "close_price": 593.6599731445312,
+      "daily_return": -0.021493388495351096,
+      "daily_return_percent": -2.1493388495351096,
+      "z_score": -0.44694653590210104,
+      "is_anomalous": false
+    },
+    {
+      "date": "2026-03-23",
+      "close_price": 604.0599975585938,
+      "daily_return": 0.017518486818262513,
+      "daily_return_percent": 1.7518486818262513,
+      "z_score": 0.6947022398069127,
+      "is_anomalous": false
+    },
+    {
+      "date": "2026-03-24",
+      "close_price": 592.9199829101562,
+      "daily_return": -0.018441900959278335,
+      "daily_return_percent": -1.8441900959278335,
+      "z_score": -0.35764739348345653,
+      "is_anomalous": false
+    },
+    {
+      "date": "2026-03-25",
+      "close_price": 594.8900146484375,
+      "daily_return": 0.0033225929215809913,
+      "daily_return_percent": 0.33225929215809913,
+      "z_score": 0.27927168803371943,
+      "is_anomalous": false
+    },
+    {
+      "date": "2026-03-26",
+      "close_price": 547.5399780273438,
+      "daily_return": -0.07959460649053962,
+      "daily_return_percent": -7.9594606490539626,
+      "z_score": -2.147228407977667,
+      "is_anomalous": true
+    },
+    {
+      "date": "2026-03-27",
+      "close_price": 525.719970703125,
+      "daily_return": -0.03985098476796356,
+      "daily_return_percent": -3.985098476796356,
+      "z_score": -0.9841657067599267,
+      "is_anomalous": false
+    },
+    {
+      "date": "2026-03-30",
+      "close_price": 536.3800048828125,
+      "daily_return": 0.02027701965635864,
+      "daily_return_percent": 2.027701965635864,
+      "z_score": 0.7754283164707173,
+      "is_anomalous": false
+    },
+    {
+      "date": "2026-03-31",
+      "close_price": 572.1300048828125,
+      "daily_return": 0.06665050836078534,
+      "daily_return_percent": 6.665050836078534,
+      "z_score": 2.132508338365737,
+      "is_anomalous": true
+    },
+    {
+      "date": "2026-04-01",
+      "close_price": 579.22998046875,
+      "daily_return": 0.01240972423285469,
+      "daily_return_percent": 1.240972423285469,
+      "z_score": 0.5451987231435245,
+      "is_anomalous": false
+    },
+    {
+      "date": "2026-04-02",
+      "close_price": 574.4600219726562,
+      "daily_return": -0.008234999321398373,
+      "daily_return_percent": -0.8234999321398373,
+      "z_score": -0.05895124865594416,
+      "is_anomalous": false
+    }
+  ]
+}

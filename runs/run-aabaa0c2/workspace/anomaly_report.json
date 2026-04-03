@@ -1,0 +1,18 @@
+{
+  "ticker": "AAPL",
+  "period": "1y",
+  "analysis_date": "2026-04-03T08:35:44.134497",
+  "total_data_points": 251,
+  "anomaly_detection_method": "IQR",
+  "iqr_multiplier": 1.5,
+  "statistics": {
+    "mean_price": 239.0153180612511,
+    "std_price": 29.061985473180837,
+    "min_price": 171.67178344726562,
+    "max_price": 285.9224548339844,
+    "mean_return": 0.001118381272887809,
+    "std_return": 0.019095836665776408
+  },
+  "anomalies": [],
+  "anomaly_count": 0
+}

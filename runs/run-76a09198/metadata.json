@@ -1,0 +1,22 @@
+{
+  "run_id": "run-76a09198",
+  "task_description": "Pull stock data from yfinance...",
+  "llm_provider": "openrouter",
+  "model_routing": {
+    "planning": "google/gemini-2.5-flash",
+    "coding": "anthropic/claude-sonnet-4",
+    "evaluating": "openai/gpt-4o-mini",
+    "recovering": "anthropic/claude-sonnet-4"
+  },
+  "temperature": 0.0,
+  "started_at": "2026-04-03T12:48:16.196574Z",
+  "completed_at": "2026-04-03T12:49:37.386908Z",
+  "status": "success",
+  "parent_run_id": null,
+  "fork_point": null,
+  "lock_config": null,
+  "total_llm_calls": 3,
+  "total_tokens": 8538,
+  "total_cost_usd": 0.0797454,
+  "error": null
+}

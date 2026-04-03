@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "ticker": "AAPL",
+    "analysis_period": {
+      "start_date": "2022-01-01",
+      "end_date": "2023-01-01"
+    },
+    "method": "IQR",
+    "iqr_multiplier": 1.5,
+    "analyzed_column": "Close",
+    "generated_at": "2026-04-03T06:57:12.078745"
+  },
+  "statistics": {
+    "q1": 142.17974090576172,
+    "q3": 162.66309356689453,
+    "iqr": 20.483352661132812,
+    "lower_bound": 111.4547119140625,
+    "upper_bound": 193.38812255859375,
+    "total_points": 251,
+    "anomaly_count": 0
+  },
+  "anomalies": [],
+  "summary": {
+    "total_data_points": 251,
+    "anomalies_detected": 0,
+    "anomaly_percentage": 0.0
+  }
+}

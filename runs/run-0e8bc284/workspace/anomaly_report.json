@@ -1,0 +1,36 @@
+{
+  "analysis_summary": {
+    "ticker": "META",
+    "analysis_date": "2026-04-03 16:52:31",
+    "period_days": 14,
+    "anomaly_threshold": 2.0,
+    "total_anomalies": 2
+  },
+  "statistics": {
+    "mean_daily_return": -0.006220545479655977,
+    "mean_daily_return_percent": -0.6220545479655978,
+    "std_daily_return": 0.034171521175052746,
+    "std_daily_return_percent": 3.4171521175052746
+  },
+  "anomalous_days": [
+    {
+      "date": "2026-03-26",
+      "close_price": 547.5399780273438,
+      "daily_return": -0.07959460649053962,
+      "daily_return_percent": -7.9594606490539626,
+      "z_score": -2.147228407977667
+    },
+    {
+      "date": "2026-03-31",
+      "close_price": 572.1300048828125,
+      "daily_return": 0.06665050836078534,
+      "daily_return_percent": 6.665050836078534,
+      "z_score": 2.132508338365737
+    }
+  ],
+  "methodology": {
+    "description": "Anomalies detected using Z-score analysis of daily returns",
+    "formula": "Z-score = (daily_return - mean_return) / std_return",
+    "threshold_criteria": "|Z-score| > 2.0"
+  }
+}

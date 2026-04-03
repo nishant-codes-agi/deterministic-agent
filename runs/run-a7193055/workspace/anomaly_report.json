@@ -1,0 +1,43 @@
+{
+  "analysis_metadata": {
+    "analysis_date": "2026-04-03T16:47:10.402937",
+    "data_period": {
+      "start_date": "2025-04-03",
+      "end_date": "2026-04-02",
+      "total_trading_days": 251
+    },
+    "detection_method": "Z-score",
+    "threshold_used": 3.0
+  },
+  "summary_statistics": {
+    "total_anomalies": 3,
+    "anomaly_rate": 0.012,
+    "mean_daily_return": 0.0011183816780035315,
+    "std_daily_return": 0.019095842522205694,
+    "max_positive_anomaly": 0.15328858759749742,
+    "max_negative_anomaly": -0.07288735286484349
+  },
+  "anomalous_dates": [
+    {
+      "date": "2025-04-09",
+      "daily_return": 0.15328858759749742,
+      "daily_return_percent": 15.328858759749743,
+      "z_score": 7.968761040134365,
+      "severity": "extreme"
+    },
+    {
+      "date": "2025-04-04",
+      "daily_return": -0.07288735286484349,
+      "daily_return_percent": -7.288735286484349,
+      "z_score": 3.8754893614559864,
+      "severity": "high"
+    },
+    {
+      "date": "2025-05-12",
+      "daily_return": 0.0631461027687732,
+      "daily_return_percent": 6.314610276877319,
+      "z_score": 3.2482317037669546,
+      "severity": "moderate"
+    }
+  ]
+}

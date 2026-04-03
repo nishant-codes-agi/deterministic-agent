@@ -1,0 +1,35 @@
+{
+  "metadata": {
+    "ticker": "META",
+    "analysis_period": {
+      "start_date": "2026-03-16",
+      "end_date": "2026-04-02"
+    },
+    "total_trading_days": 14,
+    "z_score_threshold": 2.0,
+    "generated_at": "2026-04-03T09:18:39.639456"
+  },
+  "statistics": {
+    "mean_daily_return": -0.006220545479655977,
+    "std_daily_return": 0.034171521175052746,
+    "total_anomalies": 2
+  },
+  "anomalous_days": [
+    {
+      "date": "2026-03-26",
+      "daily_return": -0.07959460649053962,
+      "daily_return_percent": -7.9594606490539626,
+      "z_score": -2.147228407977667,
+      "severity": "Moderate",
+      "close_price": 547.5399780273438
+    },
+    {
+      "date": "2026-03-31",
+      "daily_return": 0.06665050836078534,
+      "daily_return_percent": 6.665050836078534,
+      "z_score": 2.132508338365737,
+      "severity": "Moderate",
+      "close_price": 572.1300048828125
+    }
+  ]
+}
