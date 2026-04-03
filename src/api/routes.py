@@ -227,9 +227,12 @@ async def replay_run(
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
 
     from src.models.traces import PathLockConfig
+    from uuid import uuid4
+
     lock_config = PathLockConfig(source_run_id=run_id)
     agent = _build_agent(container, model_override=body.model_override)
     event_publisher = _build_event_publisher(container)
+    new_run_id = f"run-{uuid4().hex[:8]}"
 
     async def _replay_task():
         try:
@@ -244,8 +247,6 @@ async def replay_run(
 
     background_tasks.add_task(_replay_task)
 
-    from uuid import uuid4
-    new_run_id = f"run-{uuid4().hex[:8]}"
     return RunCreateResponse(
         run_id=new_run_id,
         status="accepted",
@@ -288,11 +289,13 @@ async def fork_run(
             detail=f"Decision {body.decision_id} not found in run {run_id}",
         )
 
+    from src.forking.engine import ForkEngine
+    from uuid import uuid4
+
     agent = _build_agent(container)
     event_publisher = _build_event_publisher(container)
-
-    from src.forking.engine import ForkEngine
     engine = ForkEngine(agent=agent, trace_store=store)
+    new_run_id = f"run-{uuid4().hex[:8]}"
 
     async def _fork_task():
         try:
@@ -308,8 +311,6 @@ async def fork_run(
 
     background_tasks.add_task(_fork_task)
 
-    from uuid import uuid4
-    new_run_id = f"run-{uuid4().hex[:8]}"
     return RunCreateResponse(
         run_id=new_run_id,
         status="accepted",
