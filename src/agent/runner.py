@@ -97,6 +97,7 @@ class AgentRunner(CodingAgent):
         task: str,
         lock_config: Optional[PathLockConfig] = None,
         event_handler: Optional[EventHandler] = None,
+        run_id: Optional[str] = None,
     ) -> DecisionTrace:
         """Execute the agent on a task.
 
@@ -104,13 +105,24 @@ class AgentRunner(CodingAgent):
         PersistentTracer for incremental decision trace persistence.
         """
         self._event_handler = event_handler
-        run_id = f"run-{uuid4().hex[:8]}"
+        if not run_id:
+            from uuid import uuid4
+            run_id = f"run-{uuid4().hex[:8]}"
+        
+        await self._emit(AgentEvent(
+            event_type=AgentEventType.RUN_STARTED,
+            run_id=run_id,
+            payload={"task": task}
+        ))
+
         workspace = await self._sandbox.setup_workspace(run_id)
 
         # Get optional DB session
         db_session = None
         if self._db_session_factory:
             db_session = self._db_session_factory()
+
+        final_trace: Optional[DecisionTrace] = None
 
         # Build cost tracker
         redis_cache = None
@@ -214,13 +226,15 @@ class AgentRunner(CodingAgent):
                 )
 
                 if assessment["status"] == "success":
-                    return await tracer.finalize(RunStatus.SUCCESS)
+                    final_trace = await tracer.finalize(RunStatus.SUCCESS)
+                    return final_trace
 
                 if assessment["next_action"] == "abort":
-                    return await tracer.finalize(
+                    final_trace = await tracer.finalize(
                         RunStatus.FAILED,
                         error=assessment["assessment"],
                     )
+                    return final_trace
 
                 if assessment["next_action"] == "retry":
                     # Just loop again with the same code
@@ -240,30 +254,41 @@ class AgentRunner(CodingAgent):
                     await tracer.record_decision(dp)
 
             # Max iterations exceeded
-            return await tracer.finalize(
+            final_trace = await tracer.finalize(
                 RunStatus.FAILED,
                 error="Max iterations exceeded",
             )
+            return final_trace
 
         except CostLimitExceededError as e:
             logger.warning(f"Cost limit exceeded for run {run_id}: {e}")
-            return await tracer.finalize(
+            final_trace = await tracer.finalize(
                 RunStatus.PARTIAL,
                 error=str(e),
             )
+            return final_trace
         except PathLockViolationError as e:
             logger.warning(f"Path lock violation in run {run_id}: {e}")
-            return await tracer.finalize(
+            final_trace = await tracer.finalize(
                 RunStatus.FAILED,
                 error=str(e),
             )
+            return final_trace
         except Exception as e:
             logger.exception(f"Agent run {run_id} crashed: {e}")
-            return await tracer.finalize(
+            final_trace = await tracer.finalize(
                 RunStatus.PARTIAL,
                 error=str(e),
             )
+            return final_trace
         finally:
+            if final_trace:
+                await self._emit(AgentEvent(
+                    event_type=AgentEventType.RUN_COMPLETED,
+                    run_id=run_id,
+                    payload={"status": final_trace.metadata.status.value, "error": final_trace.metadata.error}
+                ))
+
             # Close DB session if we opened one
             if db_session:
                 try:
