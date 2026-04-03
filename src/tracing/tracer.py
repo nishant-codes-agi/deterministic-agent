@@ -62,6 +62,35 @@ class PersistentTracer(DecisionTracer):
         # Open in append mode, line-buffered for crash safety
         self._jsonl_file = open(self._jsonl_path, "a")
 
+        # Write initial metadata.json so in-progress runs are visible to
+        # the list/get API endpoints (which scan the filesystem for metadata.json).
+        self._write_initial_metadata()
+
+    def _write_initial_metadata(self) -> None:
+        """Write a preliminary metadata.json with status 'running'.
+
+        This makes in-progress runs discoverable by the list/get API
+        endpoints before finalize() is called.
+        """
+        initial_metadata = RunMetadata(
+            run_id=self._run_id,
+            task_description=self._task,
+            llm_provider=self._llm_config.provider if self._llm_config else "openrouter",
+            model_routing={},
+            temperature=self._llm_config.temperature if self._llm_config else 0.0,
+            started_at=self._started_at,
+            completed_at=None,
+            status=RunStatus.RUNNING,
+            lock_config=self._lock_config,
+            parent_run_id=self._lock_config.source_run_id if self._lock_config else None,
+            total_llm_calls=0,
+            total_tokens=0,
+            total_cost_usd=0.0,
+            error=None,
+        )
+        metadata_path = self._run_dir / "metadata.json"
+        metadata_path.write_text(initial_metadata.model_dump_json(indent=2))
+
     async def record_decision(self, decision: DecisionPoint) -> None:
         """Record a decision point. Appends to JSONL and in-memory list."""
         self._decisions.append(decision)
