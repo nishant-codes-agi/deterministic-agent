@@ -138,6 +138,12 @@ class PromptInjectionLocker(PathLocker):
         ):
             return True
 
+        if (
+            self._config.overrides
+            and dp.id in self._config.overrides
+        ):
+            return True
+
         return False
 
     @staticmethod
