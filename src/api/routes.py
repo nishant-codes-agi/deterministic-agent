@@ -124,7 +124,7 @@ async def create_run(
 
     async def _run_task():
         try:
-            await agent.run(task=body.task, event_handler=event_publisher)
+            await agent.run(task=body.task, event_handler=event_publisher, run_id=run_id)
         except Exception as e:
             logger.exception(f"Background run failed: {e}")
 
@@ -237,6 +237,7 @@ async def replay_run(
                 task=source_trace.metadata.task_description,
                 lock_config=lock_config,
                 event_handler=event_publisher,
+                run_id=new_run_id,
             )
         except Exception as e:
             logger.exception(f"Background replay failed: {e}")
@@ -300,6 +301,7 @@ async def fork_run(
                 decision_id=body.decision_id,
                 new_choice=body.choice,
                 event_handler=event_publisher,
+                run_id=new_run_id,
             )
         except Exception as e:
             logger.exception(f"Background fork failed: {e}")
