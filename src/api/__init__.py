@@ -92,6 +92,10 @@ app.add_middleware(RequestIDMiddleware)
 async def generic_exception_handler(request: Request, exc: Exception):
     """Catch-all handler returning RFC 7807 error."""
     logger.exception(f"Unhandled exception: {exc}")
+    
+    if request.scope.get("type") == "websocket":
+        return
+
     return JSONResponse(
         status_code=500,
         content={

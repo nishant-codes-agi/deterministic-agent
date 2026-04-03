@@ -45,19 +45,43 @@ async def stream_run(websocket: WebSocket, run_id: str):
         await pubsub.subscribe(channel)
         logger.info(f"WebSocket subscribed to {channel}")
 
-        while True:
-            message = await pubsub.get_message(
-                ignore_subscribe_messages=True, timeout=1.0
-            )
-            if message and message["type"] == "message":
-                data = message["data"]
-                # data may be bytes or str depending on decode_responses
-                if isinstance(data, bytes):
-                    data = data.decode("utf-8")
-                await websocket.send_text(data)
+        async def _forward_redis_messages():
+            """Listen on Redis pub/sub and forward messages to WebSocket."""
+            async for message in pubsub.listen():
+                if message["type"] == "message":
+                    data = message["data"]
+                    if isinstance(data, bytes):
+                        data = data.decode("utf-8")
+                    await websocket.send_text(data)
 
-            # Yield control to allow disconnect detection
-            await asyncio.sleep(0.01)
+        async def _wait_for_disconnect():
+            """Block until the WebSocket client disconnects."""
+            try:
+                while True:
+                    # iter_bytes / receive will raise WebSocketDisconnect
+                    await websocket.receive_text()
+            except WebSocketDisconnect:
+                pass
+
+        # Run both tasks concurrently; when either finishes, cancel the other.
+        redis_task = asyncio.create_task(_forward_redis_messages())
+        ws_task = asyncio.create_task(_wait_for_disconnect())
+
+        done, pending = await asyncio.wait(
+            [redis_task, ws_task],
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        for task in pending:
+            task.cancel()
+            try:
+                await task
+            except (asyncio.CancelledError, Exception):
+                pass
+
+        # Re-raise any exception from the completed tasks (e.g. connection errors)
+        for task in done:
+            if task.exception() and not isinstance(task.exception(), (asyncio.CancelledError, WebSocketDisconnect)):
+                raise task.exception()
 
     except WebSocketDisconnect:
         logger.info(f"WebSocket client disconnected from {channel}")
@@ -70,6 +94,6 @@ async def stream_run(websocket: WebSocket, run_id: str):
     finally:
         try:
             await pubsub.unsubscribe(channel)
-            await pubsub.close()
+            await pubsub.aclose()
         except Exception:
             pass
